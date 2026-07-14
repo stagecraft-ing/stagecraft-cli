@@ -1,0 +1,29 @@
+{
+  "record": {
+    "created": "2026-07-14",
+    "dependsOn": [
+      "002-crate-scaffold"
+    ],
+    "establishes": [
+      {
+        "id": "stagecraft_cli::verbs::template",
+        "kind": "symbol"
+      }
+    ],
+    "id": "006-template-upgrade-verb",
+    "implementation": "pending",
+    "sectionHeadings": [
+      "006: template upgrade verb",
+      "1. Cross-repo dependencies (read first)",
+      "2. Behavior",
+      "3. Acceptance",
+      "4. Out of scope"
+    ],
+    "specPath": "specs/006-template-upgrade-verb/spec.md",
+    "status": "approved",
+    "summary": "The upgrade half of the 2026-07-14 packaging decision: templates stay small because the chassis ships as versioned npm packages (enrahitu spec 018), and upgrading a stamped app is a verb, not a migration project. `stagecraft template upgrade`, run in a stamped app checkout, reads template.toml, bumps the chassis package pins, applies template-shipped codemods, runs the contract verify verb, and commits on a branch. The CLI orchestrates; all structure knowledge stays in the template and its packages. This verb is the boundary that keeps the CLI from ever becoming a build daemon.\n",
+    "title": "stagecraft template upgrade: chassis upgrades as a governed verb"
+  },
+  "shardHash": "24d0395b2d3ceaa98f86d8301c675e49a3658d61d8091e218ba641b79542610f",
+  "specVersion": "1.1.0"
+}

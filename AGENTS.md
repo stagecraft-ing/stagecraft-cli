@@ -18,7 +18,7 @@ Governance is provided by `spec-spine` (installed on your `PATH`;
    `spec-spine registry list --ids-only` +
    `spec-spine registry status-report --json --nonzero-only`.
 2. **Orient.** `specs/001-cli-mcp-thesis/spec.md` holds the decided
-   constraints; specs 002-005 are the ordered build.
+   constraints; specs 002-006 are the ordered build (006 additionally gated on enrahitu spec 018).
 
 ## Working the backlog
 
