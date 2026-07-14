@@ -1,0 +1,32 @@
+{
+  "diagnostics": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "W-001",
+        "message": "spec '004-governance-verbs' symbol unit 'stagecraft_cli::verbs' did not resolve"
+      }
+    ]
+  },
+  "mapping": {
+    "dependsOn": [
+      "003-auth-api-client"
+    ],
+    "implementingPaths": [],
+    "resolvedUnits": [
+      {
+        "locations": [],
+        "ownership": true,
+        "sourceField": "establishes",
+        "unit": {
+          "id": "stagecraft_cli::verbs",
+          "kind": "symbol"
+        }
+      }
+    ],
+    "specId": "004-governance-verbs",
+    "specStatus": "approved"
+  },
+  "schemaVersion": "1.1.0",
+  "shardHash": "a24ddf0731d09232233a20b759fc8f5f533747238751552427765f75ad4aac4d"
+}

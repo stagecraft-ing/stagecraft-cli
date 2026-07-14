@@ -1,0 +1,29 @@
+{
+  "record": {
+    "created": "2026-07-14",
+    "dependsOn": [
+      "003-auth-api-client"
+    ],
+    "establishes": [
+      {
+        "id": "stagecraft_cli::verbs",
+        "kind": "symbol"
+      }
+    ],
+    "id": "004-governance-verbs",
+    "implementation": "pending",
+    "sectionHeadings": [
+      "004: Governance verbs",
+      "1. Cross-repo dependency",
+      "2. Verb surface (all support --output json)",
+      "3. Acceptance",
+      "4. Out of scope"
+    ],
+    "specPath": "specs/004-governance-verbs/spec.md",
+    "status": "approved",
+    "summary": "The CLI face becomes useful: the stub commands from spec 002 gain real implementations over the API client, mirroring the control plane's tenants (stagecraft spec 004), factory (spec 005), and fleet (spec 006) services. Every verb has a stable JSON output shape, because spec 005 exposes these same verbs as MCP tools and the JSON is the shared contract between both faces.\n",
+    "title": "Governance verbs v1: tenants, stamps, fleet"
+  },
+  "shardHash": "083b8f6ec65dbbb35bb381903a3865fa199862be98e5c55124b69202e5f516d3",
+  "specVersion": "1.1.0"
+}

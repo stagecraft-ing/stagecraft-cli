@@ -1,0 +1,33 @@
+{
+  "record": {
+    "created": "2026-07-14",
+    "dependsOn": [
+      "002-crate-scaffold"
+    ],
+    "establishes": [
+      {
+        "id": "stagecraft_cli::api",
+        "kind": "symbol"
+      },
+      {
+        "id": "stagecraft_cli::auth",
+        "kind": "symbol"
+      }
+    ],
+    "id": "003-auth-api-client",
+    "implementation": "pending",
+    "sectionHeadings": [
+      "003: Auth + API client",
+      "1. Cross-repo dependency",
+      "2. Behavior",
+      "3. Acceptance",
+      "4. Out of scope"
+    ],
+    "specPath": "specs/003-auth-api-client/spec.md",
+    "status": "approved",
+    "summary": "The binary learns to authenticate against a Stagecraft control plane and speak its API. Auth v1 is a browser-assisted session-cookie handoff (the control plane's chassis auth is cookie based, and the embedded rauthy exposes OIDC; the exact mechanism is DECIDE-AT-IMPLEMENTATION between OAuth device-flow-style polling and a localhost callback, constrained below). Tokens/cookies are stored in a 0600 credentials file, never in the config file. An api module gives every later verb a typed, authenticated request path with consistent error mapping.\n",
+    "title": "Auth + control-plane API client"
+  },
+  "shardHash": "52751edf74cf1cfe466235156a7023210ce7fd6ad29c294b63c0bc33ae43963e",
+  "specVersion": "1.1.0"
+}

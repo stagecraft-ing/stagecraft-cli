@@ -1,0 +1,75 @@
+{
+  "diagnostics": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "W-001",
+        "message": "spec '002-crate-scaffold' file unit 'Cargo.toml' does not exist",
+        "path": "Cargo.toml"
+      },
+      {
+        "code": "W-001",
+        "message": "spec '002-crate-scaffold' file unit 'Cargo.lock' does not exist",
+        "path": "Cargo.lock"
+      },
+      {
+        "code": "W-001",
+        "message": "spec '002-crate-scaffold' directory unit 'src/' is not a directory",
+        "path": "src/"
+      },
+      {
+        "code": "W-001",
+        "message": "spec '002-crate-scaffold' file unit '.github/workflows/ci.yml' does not exist",
+        "path": ".github/workflows/ci.yml"
+      }
+    ]
+  },
+  "mapping": {
+    "dependsOn": [
+      "001-cli-mcp-thesis"
+    ],
+    "implementingPaths": [],
+    "resolvedUnits": [
+      {
+        "locations": [],
+        "ownership": true,
+        "sourceField": "establishes",
+        "unit": {
+          "kind": "directory",
+          "path": "src/"
+        }
+      },
+      {
+        "locations": [],
+        "ownership": true,
+        "sourceField": "establishes",
+        "unit": {
+          "kind": "file",
+          "path": ".github/workflows/ci.yml"
+        }
+      },
+      {
+        "locations": [],
+        "ownership": true,
+        "sourceField": "establishes",
+        "unit": {
+          "kind": "file",
+          "path": "Cargo.lock"
+        }
+      },
+      {
+        "locations": [],
+        "ownership": true,
+        "sourceField": "establishes",
+        "unit": {
+          "kind": "file",
+          "path": "Cargo.toml"
+        }
+      }
+    ],
+    "specId": "002-crate-scaffold",
+    "specStatus": "approved"
+  },
+  "schemaVersion": "1.1.0",
+  "shardHash": "555db1e3828705e32f4d08d6a931f3f33cbce0a4030d9b90c9dd5bc30de22d23"
+}
