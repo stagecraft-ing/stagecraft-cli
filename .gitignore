@@ -1,0 +1,42 @@
+# Node
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+dist
+
+# Rust
+target/
+**/*.rs.bk
+
+# env / secrets
+.env
+.env.*
+!.env.example
+keys/
+*.pem
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Local runtime state
+.data/
+data/
+
+# spec-spine derived output: committed shards only
+.derived/spec-registry/*
+!.derived/spec-registry/by-spec/
+.derived/codebase-index/*
+!.derived/codebase-index/by-spec/
+!.derived/codebase-index/by-package/
+!.derived/codebase-index/config-hash.json
+!.derived/codebase-index/slices.json
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/agent-memory/
+
+.worktrees/
