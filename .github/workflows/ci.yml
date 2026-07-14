@@ -1,0 +1,31 @@
+# Rust CI (spec 002 §2): fmt, clippy -D warnings, test, release build.
+# The spec-spine governance gate lives in its own workflow (spec-spine.yml)
+# and is unchanged. Actions are pinned to a commit SHA with a version comment.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Toolchain components
+        run: rustup component add rustfmt clippy
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test
+      - name: Release build
+        run: cargo build --release
