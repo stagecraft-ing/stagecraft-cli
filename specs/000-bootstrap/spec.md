@@ -11,6 +11,7 @@ summary: >
   governed: the spine exists before the first line of product code.
 establishes:
   - "spec-spine.toml"
+  - ".github/workflows/spec-spine.yml"
 unamendable:
   - "markdown-truth-boundary"
   - "json-truth-boundary"

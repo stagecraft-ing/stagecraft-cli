@@ -5,6 +5,10 @@
       {
         "kind": "file",
         "path": "spec-spine.toml"
+      },
+      {
+        "kind": "file",
+        "path": ".github/workflows/spec-spine.yml"
       }
     ],
     "id": "000-bootstrap",
@@ -25,6 +29,6 @@
       "refusal-rule"
     ]
   },
-  "shardHash": "b0ed8d0267130ff99fff8efe4dd63567579f4db10df101096fecf189144e8354",
+  "shardHash": "e233c6319046bc4d46dfc913847a32d540e7a0b882d6570354f152484adfafb4",
   "specVersion": "1.1.0"
 }

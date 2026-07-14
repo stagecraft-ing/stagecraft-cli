@@ -1,0 +1,31 @@
+# Governance gate (spec 000): compile -> staleness -> lint -> couple.
+# Mirrors the spec-spine adoption guide's reference workflow.
+name: spec-spine
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  govern:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the gate can diff the merge base
+      - name: Install spec-spine (prebuilt, pinned)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/stagecraft-ing/spec-spine/main/install.sh | \
+            SPEC_SPINE_VERSION=v0.10.0 SPEC_SPINE_BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: spec-spine compile
+      - run: spec-spine index check
+      - run: spec-spine lint --fail-on-warn
+      - name: Coupling gate
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${PR_BODY:-}" > /tmp/pr-body.txt
+          spec-spine couple \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head HEAD \
+            --pr-body /tmp/pr-body.txt

@@ -2,11 +2,28 @@
   "mapping": {
     "implementingPaths": [
       {
+        "path": ".github/workflows/spec-spine.yml",
+        "source": "spec-edge"
+      },
+      {
         "path": "spec-spine.toml",
         "source": "spec-edge"
       }
     ],
     "resolvedUnits": [
+      {
+        "locations": [
+          {
+            "file": ".github/workflows/spec-spine.yml"
+          }
+        ],
+        "ownership": true,
+        "sourceField": "establishes",
+        "unit": {
+          "kind": "file",
+          "path": ".github/workflows/spec-spine.yml"
+        }
+      },
       {
         "locations": [
           {
@@ -25,5 +42,5 @@
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "03a0e8f54184f7291e7fe0083d7c49dc5d4d7dcdbc7ee046d6e1b4ed9bdcf1de"
+  "shardHash": "52f574a3aa6034af3a9742ec0f210e211b3f33c2ae3843e8f453d59ffd6417a7"
 }
