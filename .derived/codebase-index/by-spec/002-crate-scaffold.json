@@ -1,37 +1,37 @@
 {
-  "diagnostics": {
-    "errors": [],
-    "warnings": [
-      {
-        "code": "W-001",
-        "message": "spec '002-crate-scaffold' file unit 'Cargo.toml' does not exist",
-        "path": "Cargo.toml"
-      },
-      {
-        "code": "W-001",
-        "message": "spec '002-crate-scaffold' file unit 'Cargo.lock' does not exist",
-        "path": "Cargo.lock"
-      },
-      {
-        "code": "W-001",
-        "message": "spec '002-crate-scaffold' directory unit 'src/' is not a directory",
-        "path": "src/"
-      },
-      {
-        "code": "W-001",
-        "message": "spec '002-crate-scaffold' file unit '.github/workflows/ci.yml' does not exist",
-        "path": ".github/workflows/ci.yml"
-      }
-    ]
-  },
   "mapping": {
     "dependsOn": [
       "001-cli-mcp-thesis"
     ],
-    "implementingPaths": [],
+    "implementingPaths": [
+      {
+        "path": "",
+        "source": "manifest-metadata"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "source": "spec-edge"
+      },
+      {
+        "path": "Cargo.lock",
+        "source": "spec-edge"
+      },
+      {
+        "path": "Cargo.toml",
+        "source": "spec-edge"
+      },
+      {
+        "path": "src/",
+        "source": "spec-edge"
+      }
+    ],
     "resolvedUnits": [
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "src/"
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -40,7 +40,11 @@
         }
       },
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": ".github/workflows/ci.yml"
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -49,7 +53,11 @@
         }
       },
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "Cargo.lock"
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -58,7 +66,11 @@
         }
       },
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "Cargo.toml"
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -71,5 +83,5 @@
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "84043e361eedbc733737e36d110624a6efa6677b48d3d5c778565e096d6d98be"
+  "shardHash": "c3dc2fca3ab2f6819289a8b5e27199169855bce3389d810dfd8b87d9fee7acc8"
 }

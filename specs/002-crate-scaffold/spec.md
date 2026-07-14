@@ -3,7 +3,7 @@ id: "002-crate-scaffold"
 title: "The stagecraft binary: crate scaffold, config, CI"
 status: approved
 created: "2026-07-14"
-implementation: pending
+implementation: complete
 depends_on:
   - "001-cli-mcp-thesis"
 establishes:
@@ -34,9 +34,11 @@ defaults should already cover it; verify with `spec-spine index`).
 
 ## 2. Behavior
 
-- Dependencies (keep the tree lean): clap (derive), serde + serde_json,
-  toml, anyhow, thiserror, directories (config paths). Async arrives
-  with spec 003 (tokio + reqwest); do not pre-add.
+- Dependencies (keep the tree lean): clap (derive), clap_complete (the
+  `completions` verb's script generator; part of the clap ecosystem, no
+  async), serde + serde_json, toml, anyhow, thiserror, directories
+  (config paths). Async arrives with spec 003 (tokio + reqwest); do not
+  pre-add.
 - Command tree v1 (stubs that print a clear "not implemented until
   spec NNN" error and exit 2, so help text is honest from day one):
   `stagecraft login|whoami` (003), `tenants list|show` (004),

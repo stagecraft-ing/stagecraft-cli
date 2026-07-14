@@ -1,0 +1,31 @@
+[package]
+name = "stagecraft-cli"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Stagecraft governance verbs as CLI subcommands for humans and an MCP server for agents."
+repository = "https://github.com/stagecraft-ing/stagecraft-cli"
+readme = "README.md"
+
+# spec-spine couples this crate's code paths to its owning spec.
+[package.metadata.spec-spine]
+spec = "002-crate-scaffold"
+
+# One binary named `stagecraft` (spec 001: the OPC name retires).
+[[bin]]
+name = "stagecraft"
+path = "src/main.rs"
+
+[dependencies]
+# CLI parsing and shell completions (no async; that lands in spec 003).
+clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
+# Serialization: stable JSON output shapes are API from the first verb.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+# Error handling: anyhow for operational context, thiserror for the taxonomy.
+anyhow = "1"
+thiserror = "2"
+# Platform-appropriate config paths.
+directories = "6"
