@@ -21,7 +21,11 @@ standards_dir = "standards/spec"
 extra_hashed_inputs = [
   "standards/**",
   ".github/workflows/**",
+  ".claude/agents/**",
   ".claude/rules/**",
+  ".claude/skills/**",
+  ".claude/settings.json",
+  ".mcp.json",
 ]
 
 [coupling]
