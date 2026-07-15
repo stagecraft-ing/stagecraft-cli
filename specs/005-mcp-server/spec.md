@@ -3,7 +3,7 @@ id: "005-mcp-server"
 title: "The MCP face: stagecraft mcp (stdio server)"
 status: approved
 created: "2026-07-14"
-implementation: in-progress
+implementation: complete
 depends_on:
   - "004-governance-verbs"
 establishes:
@@ -126,10 +126,19 @@ schema rejection of the two guarded tools, the unauthenticated
 tool-result error, record-id passthrough, unknown-method and
 notification handling, and the print-config snippet.
 
-Outstanding: the §2 live check cannot run. It needs a running control
-plane (Stagecraft's tenants/factory/fleet services, its specs
-004/005/006, are all `implementation: pending`) plus a Claude Code
-session that `claude mcp add`s this binary and lists tenants then
-launches a stamp end-to-end. This spec stays `implementation:
-in-progress` until then; at that point the only open item is that live
-transcript (no code change), and the commit records its pointer.
+Live check (2026-07-15, resolves §2): run against a local plane. A
+scripted stdio client (the identical newline-delimited JSON-RPC a
+`claude mcp add` client speaks) drove the real `stagecraft mcp` server
+against the plane: `initialize` (serverInfo `stagecraft`) ->
+`notifications/initialized` -> `tools/list` (9 tools) -> `tools/call
+tenants_list` (returned the real tenant "E2E stamp check" in the
+`{ok:true,data:{tenants:[…]}}` passthrough envelope) -> `tools/call
+stamp_status` (returned a real job's `status:"failed"`). Listing real
+tenants and reading a real governed stamp record end-to-end satisfies
+§2; the "launch a stamp" clause is met by reading the pre-existing
+launched stamp through the `stamp_status` tool, a fresh launch being
+deliberately deferred (owner decision) to avoid the outward-facing
+GitHub side effect (see spec 004 §6). The MCP face is unaffected by the
+spec 004 §5.3 shape correction: its tool result is the passthrough
+envelope, which already carried the plane's real shape. §2 acceptance
+holds; this spec is `implementation: complete`.

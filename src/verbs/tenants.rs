@@ -4,7 +4,7 @@ use std::fmt::Write;
 
 use serde_json::Value;
 
-use super::{as_array, client_for, emit_err, emit_ok, field, render, table};
+use super::{array_field, client_for, emit_err, emit_ok, field, render, table};
 use crate::api::{block_on, ApiClient, ApiError};
 use crate::config::ResolvedConfig;
 use crate::error::AppResult;
@@ -70,7 +70,9 @@ pub fn install_url(
 }
 
 fn render_list(v: &Value) -> AppResult<String> {
-    let tenants = as_array(v)?;
+    // GET /tenants is `{tenants:[…]}` (stagecraft `ListTenantsResponse`), not a
+    // bare array; unwrap the collection key (spec 004 §5.3).
+    let tenants = array_field(v, "tenants")?;
     if tenants.is_empty() {
         return Ok("no tenants".to_string());
     }
@@ -82,14 +84,23 @@ fn render_list(v: &Value) -> AppResult<String> {
 }
 
 fn render_detail(v: &Value) -> AppResult<String> {
+    // GET /tenants/:id is `{tenant:{…}, installations:[…]}` (stagecraft
+    // `TenantDetailResponse`): the record lives under `tenant`, and
+    // `installations` is a sibling array, not nested in it (spec 004 §5.3).
+    let tenant = v.get("tenant").ok_or_else(|| {
+        crate::error::AppError::Operational(anyhow::anyhow!(
+            "expected an object carrying a `tenant` record from the control plane, got {}",
+            super::kind_of(v)
+        ))
+    })?;
     let mut out = String::new();
-    let _ = write!(out, "id:      {}", field(v, "id"));
-    let _ = write!(out, "\nname:    {}", field(v, "name"));
-    let owner = field(v, "ownerUserId");
+    let _ = write!(out, "id:      {}", field(tenant, "id"));
+    let _ = write!(out, "\nname:    {}", field(tenant, "name"));
+    let owner = field(tenant, "ownerUserId");
     if !owner.is_empty() {
         let _ = write!(out, "\nowner:   {owner}");
     }
-    let created = field(v, "createdAt");
+    let created = field(tenant, "createdAt");
     if !created.is_empty() {
         let _ = write!(out, "\ncreated: {created}");
     }
@@ -137,10 +148,11 @@ mod tests {
 
     #[test]
     fn list_renders_a_table() {
-        let value = json!([
+        // The plane wraps the collection under `tenants` (spec 004 §5.3).
+        let value = json!({"tenants": [
             {"id": "t_1", "name": "Acme", "createdAt": "2026-07-01"},
             {"id": "t_2", "name": "Beta", "createdAt": "2026-07-02"}
-        ]);
+        ]});
         let out = render_list(&value).unwrap();
         assert!(out.contains("ID"));
         assert!(out.contains("t_1"));
@@ -149,24 +161,42 @@ mod tests {
 
     #[test]
     fn list_empty_states_when_no_tenants() {
-        assert_eq!(render_list(&json!([])).unwrap(), "no tenants");
+        assert_eq!(render_list(&json!({"tenants": []})).unwrap(), "no tenants");
+    }
+
+    #[test]
+    fn list_rejects_a_bare_array() {
+        // A bare array is the pre-live-check assumption the plane never returned;
+        // it must now surface as a decode error, not render.
+        assert!(render_list(&json!([{"id": "t_1"}])).is_err());
     }
 
     #[test]
     fn detail_shows_installations() {
+        // `{tenant:{…}, installations:[…]}`: record under `tenant`, installations
+        // a sibling (stagecraft `TenantDetailResponse`, spec 004 §5.3).
         let value = json!({
-            "id": "t_1",
-            "name": "Acme",
-            "ownerUserId": "u_1",
-            "createdAt": "2026-07-01",
+            "tenant": {
+                "id": "t_1",
+                "name": "Acme",
+                "ownerUserId": "u_1",
+                "createdAt": "2026-07-01"
+            },
             "installations": [
-                {"id": "i_1", "githubOrg": "acme-inc", "installationId": 125344051, "status": "active"}
+                {"id": "i_1", "githubOrg": "acme-inc", "installationId": "125344051", "status": "active"}
             ]
         });
         let out = render_detail(&value).unwrap();
         assert!(out.contains("name:    Acme"));
         assert!(out.contains("acme-inc"));
         assert!(out.contains("125344051"));
+    }
+
+    #[test]
+    fn detail_rejects_a_response_without_a_tenant_record() {
+        // No `tenant` key is drift the human renderer cannot read: a decode
+        // error (exit 1), never a blank header.
+        assert!(render_detail(&json!({"installations": []})).is_err());
     }
 
     #[test]
@@ -184,7 +214,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(GET).path("/api/v1/tenants");
             then.status(200)
-                .json_body(json!([{"id": "t_1", "name": "Acme"}]));
+                .json_body(json!({"tenants": [{"id": "t_1", "name": "Acme"}]}));
         });
 
         let client = ApiClient::new(server.base_url(), Some("tok".into()), false).unwrap();
@@ -193,7 +223,7 @@ mod tests {
             .unwrap();
 
         mock.assert();
-        assert_eq!(value[0]["id"], "t_1");
+        assert_eq!(value["tenants"][0]["id"], "t_1");
     }
 
     #[test]
@@ -235,7 +265,7 @@ mod tests {
 
     #[test]
     fn list_envelope_snapshot() {
-        let data = json!([{"id": "t_1", "name": "Acme"}]);
+        let data = json!({"tenants": [{"id": "t_1", "name": "Acme"}]});
         let env = crate::verbs::success_envelope_value(&data);
         assert_eq!(env, json!({ "ok": true, "data": data }));
     }

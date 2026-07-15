@@ -6,7 +6,7 @@ use std::fmt::Write;
 
 use serde_json::{json, Map, Value};
 
-use super::{as_array, client_for, field, render, require_field, table};
+use super::{array_field, client_for, field, render, require_field, table};
 use crate::api::{block_on, ApiClient, ApiError};
 use crate::config::ResolvedConfig;
 use crate::error::AppResult;
@@ -130,7 +130,9 @@ pub fn remove(
 }
 
 fn render_list(v: &Value) -> AppResult<String> {
-    let apps = as_array(v)?;
+    // GET /tenants/:id/fleet is `{apps:[…]}` (stagecraft `ListFleetResponse`),
+    // not a bare array; unwrap the collection key (spec 004 §5.3).
+    let apps = array_field(v, "apps")?;
     if apps.is_empty() {
         return Ok("no fleet apps".to_string());
     }
@@ -173,22 +175,24 @@ fn render_app(v: &Value) -> AppResult<String> {
     Ok(out)
 }
 
-/// A fleet operation record (backup responses): id, kind, status, artifact.
+/// A backup receipt (`fleet backup` response): the restic `repository`, the
+/// snapshot `tag`, and the Kubernetes `jobName` (stagecraft `BackupResponse`,
+/// spec 004 §5.3). This is a completed-backup receipt, not an op record: it
+/// carries no `id`/`status`. `repository` is required, so a shape missing it is
+/// a decode error (the drift signal), not a silent blank.
 fn render_op(v: &Value) -> AppResult<String> {
     if v.is_null() {
         return Ok("done".to_string());
     }
     let mut out = String::new();
-    let _ = write!(
-        out,
-        "op {}  {}  status: {}",
-        require_field(v, "id")?,
-        field(v, "kind"),
-        require_field(v, "status")?
-    );
-    let log = field(v, "log");
-    if !log.is_empty() {
-        let _ = write!(out, "\n  {log}");
+    let _ = write!(out, "backup {}", require_field(v, "repository")?);
+    let tag = field(v, "tag");
+    if !tag.is_empty() {
+        let _ = write!(out, "  tag: {tag}");
+    }
+    let job = field(v, "jobName");
+    if !job.is_empty() {
+        let _ = write!(out, "  job: {job}");
     }
     Ok(out)
 }
@@ -203,9 +207,10 @@ mod tests {
 
     #[test]
     fn list_renders_a_table() {
-        let v = json!([
+        // The plane wraps the collection under `apps` (spec 004 §5.3).
+        let v = json!({"apps": [
             {"id": "a_1", "name": "smoke", "status": "running", "image": "ghcr.io/x:1", "createdAt": "2026-07-01"}
-        ]);
+        ]});
         let out = render_list(&v).unwrap();
         assert!(out.contains("STATUS"));
         assert!(out.contains("running"));
@@ -213,8 +218,29 @@ mod tests {
     }
 
     #[test]
+    fn list_rejects_a_bare_array() {
+        // The pre-live-check bare-array assumption must now decode-error.
+        assert!(render_list(&json!([{"id": "a_1"}])).is_err());
+    }
+
+    #[test]
     fn app_renders_a_null_body_as_done() {
         assert_eq!(render_app(&Value::Null).unwrap(), "done");
+    }
+
+    #[test]
+    fn op_renders_a_backup_receipt() {
+        // `fleet backup` -> BackupResponse {repository, tag, jobName}; no id/status.
+        let v = json!({"repository": "s3:bucket/app", "tag": "2026-07-15", "jobName": "backup-app-xyz"});
+        let out = render_op(&v).unwrap();
+        assert!(out.contains("backup s3:bucket/app"));
+        assert!(out.contains("tag: 2026-07-15"));
+        assert!(out.contains("job: backup-app-xyz"));
+    }
+
+    #[test]
+    fn op_rejects_a_receipt_without_a_repository() {
+        assert!(render_op(&json!({"tag": "x"})).is_err());
     }
 
     #[test]
@@ -267,7 +293,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(GET).path("/api/v1/tenants/t_1/fleet");
             then.status(200)
-                .json_body(json!([{"id": "a_1", "name": "smoke", "status": "running"}]));
+                .json_body(json!({"apps": [{"id": "a_1", "name": "smoke", "status": "running"}]}));
         });
 
         let client = ApiClient::new(server.base_url(), Some("tok".into()), false).unwrap();
@@ -276,7 +302,7 @@ mod tests {
             .unwrap();
 
         mock.assert();
-        assert_eq!(value[0]["status"], "running");
+        assert_eq!(value["apps"][0]["status"], "running");
     }
 
     #[test]
@@ -284,8 +310,9 @@ mod tests {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.method(POST).path("/api/v1/fleet/a_1/backup");
-            then.status(200)
-                .json_body(json!({"id": "op_1", "kind": "backup", "status": "done"}));
+            then.status(200).json_body(
+                json!({"repository": "s3:bucket/app", "tag": "2026-07-15", "jobName": "backup-app-xyz"}),
+            );
         });
 
         let client = ApiClient::new(server.base_url(), Some("tok".into()), false).unwrap();
@@ -294,7 +321,7 @@ mod tests {
             .unwrap();
 
         mock.assert();
-        assert_eq!(value["kind"], "backup");
+        assert_eq!(value["repository"], "s3:bucket/app");
     }
 
     #[test]
