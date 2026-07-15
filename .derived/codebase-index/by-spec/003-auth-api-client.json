@@ -1,25 +1,25 @@
 {
-  "diagnostics": {
-    "errors": [],
-    "warnings": [
-      {
-        "code": "W-001",
-        "message": "spec '003-auth-api-client' symbol unit 'stagecraft_cli::api' did not resolve"
-      },
-      {
-        "code": "W-001",
-        "message": "spec '003-auth-api-client' symbol unit 'stagecraft_cli::auth' did not resolve"
-      }
-    ]
-  },
   "mapping": {
     "dependsOn": [
       "002-crate-scaffold"
     ],
-    "implementingPaths": [],
+    "implementingPaths": [
+      {
+        "path": "src/main.rs",
+        "source": "spec-edge"
+      }
+    ],
     "resolvedUnits": [
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "src/main.rs",
+            "span": {
+              "endLine": 5,
+              "startLine": 5
+            }
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -28,7 +28,15 @@
         }
       },
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "src/main.rs",
+            "span": {
+              "endLine": 6,
+              "startLine": 6
+            }
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -41,5 +49,5 @@
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "f4fb107776f2e575bc5601766bdb66a8c65e0c104d65d0b927f806d446b03be7"
+  "shardHash": "e6fd7efd240ef302be413f7448761f2261659e888da91930484cbc6439de53bb"
 }

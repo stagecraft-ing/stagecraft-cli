@@ -21,8 +21,8 @@ pub fn dispatch(cli: Cli) -> AppResult<()> {
     let format = resolved.output_format();
 
     match &cli.command {
-        Command::Login => Err(AppError::not_implemented("login", "003-auth-api-client")),
-        Command::Whoami => Err(AppError::not_implemented("whoami", "003-auth-api-client")),
+        Command::Login => crate::auth::run_login(&resolved, format, cli.debug),
+        Command::Whoami => crate::api::run_whoami(&resolved, format, cli.debug),
         Command::Tenants { command } => tenants(command),
         Command::Stamp { command } => stamp(command),
         Command::Fleet { command } => fleet(command),

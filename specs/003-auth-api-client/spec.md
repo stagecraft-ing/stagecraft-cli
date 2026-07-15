@@ -3,7 +3,7 @@ id: "003-auth-api-client"
 title: "Auth + control-plane API client"
 status: approved
 created: "2026-07-14"
-implementation: pending
+implementation: in-progress
 depends_on:
   - "002-crate-scaffold"
 establishes:
@@ -62,6 +62,48 @@ check as pending.
 - JSON output shapes for whoami defined and tested (the MCP face
   reuses them).
 
+### Auth mechanism decision (2026-07-14 amendment)
+
+Chosen v1 mechanism: **browser-assisted bearer-token handoff (paste)**,
+the fallback sanctioned by constraint 1 above. `stagecraft login
+[--base-url URL]` guides the operator to sign in through a browser at
+the control plane, then reads the resulting chassis session token
+(`access_token`) from stdin (a piped value or an interactive prompt, so
+a headless machine with a browser elsewhere is supported), validates it
+with `GET /api/v1/auth/me`, and writes it to the credentials file. The
+api module replays the stored token as `Authorization: Bearer` on every
+request.
+
+Why not the preferred RFC 8252 loopback OIDC flow: it needs two
+control-plane additions that do not exist today. Verified against the
+enrahitu chassis that the control plane imports (chassis specs
+004-auth-core, 005-rauthy-same-origin, both complete):
+
+1. No public rauthy OIDC client with a `127.0.0.1:<port>` loopback
+   redirect URI. The sole bootstrapped client (`enrahitu`) is
+   confidential, its redirect is fixed to `localhost:4000`, and dynamic
+   client registration is off. The `device_code` grant (RFC 8628) is
+   not enabled either, so device flow is equally blocked.
+2. No endpoint that returns the app-minted token to a local listener.
+   The gateway verifies an app-issued RS256 JWT (issuer `enrahitu`,
+   deposited only as an httpOnly cookie), not a rauthy-issued token, so
+   even a perfect loopback exchange against rauthy would yield a token
+   the API rejects. There is also no personal-access-token or API-key
+   issuance surface.
+
+Forward compatibility: the credentials store and the Bearer replay in
+the api module are independent of how the token was acquired. When the
+control plane adds the loopback client plus a token-return endpoint,
+`login` gains that acquisition path with no change to the credentials
+contract or the api module.
+
+Refresh: the paste mechanism hands the CLI no refresh token, so v1 has
+no transparent refresh; on HTTP 401 the CLI errors with "run stagecraft
+login". Longer-lived or refreshable CLI tokens are control-plane work
+to add alongside the loopback flow. (The chassis `access_token` is a
+15-minute JWT, a control-plane limitation reported here, not a CLI
+defect.)
+
 ## 3. Acceptance
 
 - Unit: credentials file round-trip with permission assertion; 401 ->
@@ -77,3 +119,19 @@ check as pending.
 - OS keychain integration (file + 0600 is v1; a later spec may add
   keychain backends).
 - Multi-user/profile switching UX beyond per-base-url entries.
+
+## 5. Status (2026-07-14)
+
+Implementation landed: the `auth` and `api` modules, the credentials
+store (0600, per-base-url), `login` (paste handoff) and `whoami`, the
+uniform error taxonomy, GET-only retry with jitter, and `--debug`, all
+covered by unit and mock-server (httpmock) tests.
+
+Outstanding: the §3 manual e2e against a **live** control plane (login,
+whoami, a raw authenticated GET) is deferred per §1. No control plane
+is reachable: the stagecraft repo is pre-code (its service specs
+002/004 are approved but `implementation: pending`), and the enrahitu
+chassis that supplies the auth surface is not yet stamped into a
+running plane. This spec stays `implementation: in-progress` until that
+live check can run; everything unit-testable is verified against the
+httpmock server per §1.

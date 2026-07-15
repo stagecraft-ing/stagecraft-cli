@@ -16,10 +16,9 @@ fn run(args: &[&str]) -> Output {
 
 #[test]
 fn stub_verb_exits_2_names_spec_and_keeps_stdout_clean() {
-    // One representative stub per owning spec.
+    // One representative stub per still-unimplemented owning spec. login and
+    // whoami left this list when spec 003 implemented them.
     for (args, spec) in [
-        (["login"].as_slice(), "003"),
-        (["whoami"].as_slice(), "003"),
         (["tenants", "list"].as_slice(), "004"),
         (["stamp", "new"].as_slice(), "004"),
         (["fleet", "remove"].as_slice(), "004"),
@@ -38,6 +37,39 @@ fn stub_verb_exits_2_names_spec_and_keeps_stdout_clean() {
             String::from_utf8_lossy(&out.stdout)
         );
     }
+}
+
+#[test]
+fn auth_verbs_without_base_url_are_usage_errors() {
+    // login and whoami need a control plane to talk to; omitting it is misuse
+    // (exit 2), distinct from being logged out (exit 1, below).
+    for args in [["login"].as_slice(), ["whoami"].as_slice()] {
+        let out = run(args);
+        assert_eq!(out.status.code(), Some(2), "args {args:?} should exit 2");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            stderr.contains("base URL"),
+            "args {args:?}: stderr should name the missing base URL, got: {stderr}"
+        );
+        assert!(
+            out.stdout.is_empty(),
+            "args {args:?}: stdout must stay clean"
+        );
+    }
+}
+
+#[test]
+fn whoami_without_a_stored_credential_exits_1_with_login_hint() {
+    // A base URL that no credentials file could hold: whoami short-circuits to
+    // the unauthenticated error before any network call, so this is hermetic.
+    let out = run(&["whoami", "--base-url", "https://unconfigured.plane.invalid"]);
+    assert_eq!(out.status.code(), Some(1), "unauthenticated is exit 1");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("stagecraft login"),
+        "stderr should hint at login, got: {stderr}"
+    );
+    assert!(out.stdout.is_empty(), "errors must not print to stdout");
 }
 
 #[test]
