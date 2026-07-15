@@ -5,15 +5,26 @@ use std::fmt::Write;
 use serde_json::Value;
 
 use super::{as_array, client_for, emit_err, emit_ok, field, render, table};
-use crate::api::block_on;
+use crate::api::{block_on, ApiClient, ApiError};
 use crate::config::ResolvedConfig;
 use crate::error::AppResult;
 use crate::output::OutputFormat;
 
+/// GET /api/v1/tenants: the `tenants list` request, shared by both faces (the
+/// CLI renders it, the MCP `tenants_list` tool returns its envelope, spec 005).
+pub(crate) async fn list_request(client: &ApiClient) -> Result<Value, ApiError> {
+    client.get_value("/api/v1/tenants").await
+}
+
+/// GET /api/v1/tenants/:id (includes installations): the `tenants show` request.
+pub(crate) async fn show_request(client: &ApiClient, id: &str) -> Result<Value, ApiError> {
+    client.get_value(&format!("/api/v1/tenants/{id}")).await
+}
+
 /// `tenants list` -> GET /api/v1/tenants.
 pub fn list(resolved: &ResolvedConfig, format: OutputFormat, debug: bool) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let result = block_on(client.get_value("/api/v1/tenants"))?;
+    let result = block_on(list_request(&client))?;
     render(format, result, render_list)
 }
 
@@ -25,8 +36,7 @@ pub fn show(
     id: &str,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/tenants/{id}");
-    let result = block_on(client.get_value(&path))?;
+    let result = block_on(show_request(&client, id))?;
     render(format, result, render_detail)
 }
 
@@ -226,7 +236,7 @@ mod tests {
     #[test]
     fn list_envelope_snapshot() {
         let data = json!([{"id": "t_1", "name": "Acme"}]);
-        let env = crate::verbs::success_envelope(&data);
+        let env = crate::verbs::success_envelope_value(&data);
         assert_eq!(env, json!({ "ok": true, "data": data }));
     }
 }

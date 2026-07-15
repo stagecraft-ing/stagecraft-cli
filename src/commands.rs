@@ -14,7 +14,7 @@ use serde::Serialize;
 
 use crate::cli::{Cli, Command, ConfigCommand, FleetCommand, StampCommand, TenantsCommand};
 use crate::config::{self, FlagConfig, ResolvedConfig, Sourced};
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::output::{self, OutputFormat};
 
 /// Resolve config, then run the selected command.
@@ -28,7 +28,13 @@ pub fn dispatch(cli: Cli) -> AppResult<()> {
         Command::Tenants { command } => tenants(command, &resolved, format, cli.debug),
         Command::Stamp { command } => stamp(command, &resolved, format, cli.debug),
         Command::Fleet { command } => fleet(command, &resolved, format, cli.debug),
-        Command::Mcp => Err(AppError::not_implemented("mcp", "005-mcp-server")),
+        Command::Mcp { print_config } => {
+            if *print_config {
+                crate::mcp::print_config(&resolved)
+            } else {
+                crate::mcp::run(&resolved, cli.debug)
+            }
+        }
         Command::Version => {
             version(format);
             Ok(())

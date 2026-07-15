@@ -1,21 +1,25 @@
 {
-  "diagnostics": {
-    "errors": [],
-    "warnings": [
-      {
-        "code": "W-001",
-        "message": "spec '005-mcp-server' symbol unit 'stagecraft_cli::mcp' did not resolve"
-      }
-    ]
-  },
   "mapping": {
     "dependsOn": [
       "004-governance-verbs"
     ],
-    "implementingPaths": [],
+    "implementingPaths": [
+      {
+        "path": "src/main.rs",
+        "source": "spec-edge"
+      }
+    ],
     "resolvedUnits": [
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "src/main.rs",
+            "span": {
+              "endLine": 11,
+              "startLine": 11
+            }
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -28,5 +32,5 @@
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "e008833142ffaa2dcd19e8e7523beadc84a57e2c6ebe45abb6f043e14de4d7a6"
+  "shardHash": "e70bccf4edf182edfbbbc8a646914cc844164100db692ccdea182dfa83f46c52"
 }

@@ -2,7 +2,8 @@
 //!
 //! Cargo sets `CARGO_BIN_EXE_stagecraft`, so no extra test crates are needed.
 
-use std::process::{Command, Output};
+use std::io::Write;
+use std::process::{Command, Output, Stdio};
 
 fn run(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_stagecraft"))
@@ -14,22 +15,58 @@ fn run(args: &[&str]) -> Output {
         .expect("failed to run stagecraft binary")
 }
 
+/// Drive the binary with `input` piped to stdin, then close it. The `mcp` stdio
+/// server reads newline-delimited requests and shuts down on the resulting EOF.
+fn run_with_stdin(args: &[&str], input: &str) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+        .args(args)
+        .env_remove("STAGECRAFT_BASE_URL")
+        .env_remove("STAGECRAFT_OUTPUT")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn stagecraft binary");
+    child
+        .stdin
+        .take()
+        .expect("stdin was piped")
+        .write_all(input.as_bytes())
+        .expect("failed to write stdin");
+    // The taken stdin drops here, closing the pipe: EOF the server treats as
+    // shutdown, so the wait below returns rather than blocking.
+    child
+        .wait_with_output()
+        .expect("failed to wait on stagecraft binary")
+}
+
 #[test]
-fn stub_verb_exits_2_names_spec_and_keeps_stdout_clean() {
-    // `mcp` is the last stub: login/whoami left when spec 003 landed, and
-    // tenants/stamp/fleet left when spec 004 implemented them.
-    let out = run(&["mcp"]);
-    assert_eq!(out.status.code(), Some(2), "mcp should exit 2");
-    let stderr = String::from_utf8_lossy(&out.stderr);
+fn mcp_print_config_emits_an_installable_snippet() {
+    // `mcp --print-config` is the install helper (spec 005 §1): a `.mcp.json`
+    // snippet on stdout, exit 0. No stubs remain in the command tree.
+    let out = run(&["mcp", "--print-config"]);
+    assert_eq!(out.status.code(), Some(0), "print-config should exit 0");
+    let value: serde_json::Value =
+        serde_json::from_slice(&out.stdout).expect("print-config emits valid JSON");
+    assert_eq!(value["mcpServers"]["stagecraft"]["args"][0], "mcp");
     assert!(
-        stderr.contains("005"),
-        "mcp stderr should name spec 005, got: {stderr}"
+        value["mcpServers"]["stagecraft"]["command"].is_string(),
+        "the snippet names a launch command, got: {value}"
     );
-    assert!(
-        out.stdout.is_empty(),
-        "errors must not print to stdout, got: {:?}",
-        String::from_utf8_lossy(&out.stdout)
-    );
+}
+
+#[test]
+fn mcp_server_answers_initialize_over_stdio() {
+    // The real binary wires stdin -> the JSON-RPC loop -> stdout. Feed one
+    // initialize request; the server replies, then shuts down on stdin EOF.
+    let request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
+    let out = run_with_stdin(&["mcp"], &format!("{request}\n"));
+    assert_eq!(out.status.code(), Some(0), "clean shutdown on stdin EOF");
+    let line = String::from_utf8_lossy(&out.stdout);
+    let value: serde_json::Value =
+        serde_json::from_str(line.trim()).expect("one JSON-RPC response line on stdout");
+    assert_eq!(value["id"], 1);
+    assert_eq!(value["result"]["serverInfo"]["name"], "stagecraft");
 }
 
 #[test]

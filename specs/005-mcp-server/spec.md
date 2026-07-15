@@ -3,7 +3,7 @@ id: "005-mcp-server"
 title: "The MCP face: stagecraft mcp (stdio server)"
 status: approved
 created: "2026-07-14"
-implementation: pending
+implementation: in-progress
 depends_on:
   - "004-governance-verbs"
 establishes:
@@ -53,6 +53,25 @@ summary: >
 - `stagecraft mcp --print-config` prints the .mcp.json snippet for
   easy installation.
 
+### Transport decision (2026-07-15 amendment)
+
+Chosen: **hand-rolled JSON-RPC 2.0 over newline-delimited stdio**, the
+dependency-free path §1 sanctions, not the rmcp SDK. Each message is a
+single-line JSON object (no embedded newlines, the MCP stdio framing);
+the server implements `initialize`, `notifications/initialized`,
+`tools/list`, `tools/call`, `ping`, and `shutdown`, and treats stdin
+EOF as shutdown.
+
+Why not rmcp: it would add a macro-heavy dependency subtree (its own
+schemars/tower stack) to a binary whose whole surface here is nine tools
+over one request each. The framing we need is small, is fully exercised
+by an in-process scripted stdio client (§2), and keeps the tree
+rustls-only and lean (CLAUDE.md). The verb layer, not the transport, is
+where the governance lives; a thin transport keeps the `{ok,data|error}`
+envelope (spec 004 §5.2) the literal tool result with no reshaping. If a
+future transport (HTTP/SSE, §3 out of scope) argues for rmcp, that is a
+new decision recorded by amendment.
+
 ## 2. Acceptance
 
 - Protocol tests: a scripted stdio client performs initialize ->
@@ -70,3 +89,47 @@ summary: >
 - HTTP/SSE transports, remote MCP hosting.
 - Approvals tools (with the approvals surface, later).
 - Any tool that bypasses the verb layer or its guards.
+
+## 4. Status (2026-07-15)
+
+Implemented: `stagecraft mcp` runs the stdio JSON-RPC server (the
+transport decision above) in the new `stagecraft_cli::mcp` module,
+exposing all nine §1 tools. Each tool calls the identical spec 004 verb
+request (the endpoint and body knowledge lives once, in
+`stagecraft_cli::verbs`; the MCP face only chooses which to call), and
+the tool result is the spec 004 §5.2 `{ok,data|error}` envelope
+verbatim, so any attestation/record ids in the plane's payload are
+carried through. The guards pass through: `stamp_new` rejects a
+missing or empty `posture` and `fleet_remove` a missing or empty
+`confirm_name` as JSON-RPC invalid-params (-32602), and neither `login`
+nor `install-url --open` is exposed, so an agent can never trigger the
+browser flow. An unauthenticated server still starts and answers every
+tool call with a structured `{ok:false,error:{kind:"unauthenticated"}}`
+result naming `stagecraft login`; a corrupt or unreadable credentials
+store degrades to the same unauthenticated start rather than refusing to
+boot. `stagecraft mcp --print-config` prints the `.mcp.json` snippet.
+
+The tool-result `error.kind` set a client can see is the spec 004 §5.2
+taxonomy passed through (`network`, `api`, `server`, `decode`) plus two
+kinds the MCP face adds for pre-request conditions the CLI face reports
+as exit codes instead: `unauthenticated` (no stored credential) and
+`config` (the server was launched with no base URL). Malformed stdio
+input is answered per JSON-RPC 2.0 (`-32700` for invalid UTF-8 or JSON,
+`-32600` for a non-request object, `-32601` unknown method, `-32602`
+invalid params, including the two guard rejections) and never aborts the
+server: one bad line is answered and skipped.
+
+Covered by tests: a scripted in-process stdio client drives
+initialize -> tools/list -> tools/call round-trips against the
+mock-backed verb layer (tenants list, stamp launch, fleet remove),
+schema rejection of the two guarded tools, the unauthenticated
+tool-result error, record-id passthrough, unknown-method and
+notification handling, and the print-config snippet.
+
+Outstanding: the §2 live check cannot run. It needs a running control
+plane (Stagecraft's tenants/factory/fleet services, its specs
+004/005/006, are all `implementation: pending`) plus a Claude Code
+session that `claude mcp add`s this binary and lists tenants then
+launches a stamp end-to-end. This spec stays `implementation:
+in-progress` until then; at that point the only open item is that live
+transcript (no code change), and the commit records its pointer.
