@@ -9,13 +9,14 @@ mod commands;
 mod config;
 mod error;
 mod output;
+mod verbs;
 
 use std::process::ExitCode;
 
 use clap::Parser;
 
 use crate::cli::Cli;
-use crate::error::EXIT_OK;
+use crate::error::{AppError, EXIT_OK};
 
 fn main() -> ExitCode {
     // clap handles `--help`/`--version` and its own usage errors (exit 2)
@@ -24,6 +25,9 @@ fn main() -> ExitCode {
 
     match commands::dispatch(cli) {
         Ok(()) => ExitCode::from(EXIT_OK),
+        // A `Rendered` failure already wrote the JSON error envelope to stdout
+        // (spec 004 §5.2); exit with its code without a second, stderr report.
+        Err(AppError::Rendered { code }) => ExitCode::from(code),
         Err(err) => {
             eprintln!("error: {err}");
             ExitCode::from(err.code())
