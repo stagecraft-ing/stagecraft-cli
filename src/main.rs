@@ -2,6 +2,8 @@
 //! (spec 002); auth (003), governance verbs (004), and the MCP server (005)
 //! hang off the command tree established here.
 
+mod api;
+mod auth;
 mod cli;
 mod commands;
 mod config;

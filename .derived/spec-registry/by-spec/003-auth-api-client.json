@@ -15,19 +15,21 @@
       }
     ],
     "id": "003-auth-api-client",
-    "implementation": "pending",
+    "implementation": "in-progress",
     "sectionHeadings": [
       "003: Auth + API client",
       "1. Cross-repo dependency",
       "2. Behavior",
+      "Auth mechanism decision (2026-07-14 amendment)",
       "3. Acceptance",
-      "4. Out of scope"
+      "4. Out of scope",
+      "5. Status (2026-07-14)"
     ],
     "specPath": "specs/003-auth-api-client/spec.md",
     "status": "approved",
     "summary": "The binary learns to authenticate against a Stagecraft control plane and speak its API. Auth v1 is a browser-assisted session-cookie handoff (the control plane's chassis auth is cookie based, and the embedded rauthy exposes OIDC; the exact mechanism is DECIDE-AT-IMPLEMENTATION between OAuth device-flow-style polling and a localhost callback, constrained below). Tokens/cookies are stored in a 0600 credentials file, never in the config file. An api module gives every later verb a typed, authenticated request path with consistent error mapping.\n",
     "title": "Auth + control-plane API client"
   },
-  "shardHash": "52751edf74cf1cfe466235156a7023210ce7fd6ad29c294b63c0bc33ae43963e",
+  "shardHash": "6468f4075cab0994b5c4bd86701bf2f1fe0198df6c066cd60cfc4210bda375b4",
   "specVersion": "1.1.0"
 }

@@ -29,3 +29,15 @@ anyhow = "1"
 thiserror = "2"
 # Platform-appropriate config paths.
 directories = "6"
+# Async runtime and HTTP client for the control-plane API (spec 003).
+# rustls only, never native-tls (CLAUDE.md: no OpenSSL on customer machines).
+tokio = { version = "1", features = ["rt-multi-thread", "time", "net"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "cookies",
+    "rustls-tls",
+] }
+
+[dev-dependencies]
+# Mock HTTP server so `cargo test` never gates on a live control plane (spec 003 §1).
+httpmock = "0.7"
