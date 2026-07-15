@@ -61,6 +61,11 @@ pub enum Command {
         #[command(subcommand)]
         command: FleetCommand,
     },
+    /// Chassis template upgrades, run in a stamped app checkout (spec 006).
+    Template {
+        #[command(subcommand)]
+        command: TemplateCommand,
+    },
     /// Run the MCP server over stdio (spec 005).
     Mcp {
         /// Print the .mcp.json install snippet for this server, then exit.
@@ -205,6 +210,26 @@ pub enum FleetCommand {
         /// The app's literal name, echoed to authorize the teardown.
         #[arg(long)]
         confirm: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TemplateCommand {
+    /// Upgrade a stamped app's chassis pins to a newer template version (spec 006).
+    ///
+    /// Run from the repo root of a stamped app. Reads template.toml, bumps the
+    /// chassis package pins, refreshes the lockfile, runs template-owned
+    /// codemods, runs the contract's verify verb, and commits on a branch.
+    Upgrade {
+        /// Target template version; omit to resolve the latest compatible one.
+        #[arg(long, value_name = "VERSION")]
+        to: Option<String>,
+        /// Print the plan and diffs without changing anything.
+        #[arg(long)]
+        dry_run: bool,
+        /// Commit on the current branch instead of a new template-upgrade branch.
+        #[arg(long)]
+        no_branch: bool,
     },
 }
 

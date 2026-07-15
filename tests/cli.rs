@@ -15,6 +15,32 @@ fn run(args: &[&str]) -> Output {
         .expect("failed to run stagecraft binary")
 }
 
+/// Run the binary with its working directory set to `dir`: the `template`
+/// verb operates on the stamped app in the current directory (spec 006).
+fn run_in(dir: &std::path::Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+        .args(args)
+        .current_dir(dir)
+        .env_remove("STAGECRAFT_BASE_URL")
+        .env_remove("STAGECRAFT_OUTPUT")
+        .output()
+        .expect("failed to run stagecraft binary")
+}
+
+/// Create a unique temp dir seeded with a `template.toml` and `package.json`,
+/// for the offline `template` refusals and the dry-run plan (no git/npm needed).
+fn stamped_fixture(template_toml: &str, package_json: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir =
+        std::env::temp_dir().join(format!("stagecraft-cli-tmpl-{}-{}", std::process::id(), n));
+    std::fs::create_dir_all(&dir).expect("create fixture dir");
+    std::fs::write(dir.join("template.toml"), template_toml).expect("write template.toml");
+    std::fs::write(dir.join("package.json"), package_json).expect("write package.json");
+    dir
+}
+
 /// Drive the binary with `input` piped to stdin, then close it. The `mcp` stdio
 /// server reads newline-delimited requests and shuts down on the resulting EOF.
 fn run_with_stdin(args: &[&str], input: &str) -> Output {
@@ -175,6 +201,7 @@ fn help_lists_the_full_command_tree() {
         "tenants",
         "stamp",
         "fleet",
+        "template",
         "mcp",
         "version",
         "config",
@@ -246,4 +273,71 @@ fn config_show_reports_env_as_the_base_url_source() {
     let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
     assert_eq!(value["base_url"]["value"], "https://env.example");
     assert_eq!(value["base_url"]["source"], "env");
+}
+
+// --- template upgrade (spec 006), offline paths only -----------------------
+
+const TOOLCHAIN_TOML: &str =
+    "[template]\nname = \"enrahitu\"\nversion = \"0.1.0\"\n\n[requires]\ntoolchain = \"^0.1\"\n\n[verbs]\nverify = \"npm test\"\n";
+
+#[test]
+fn template_upgrade_not_stamped_is_a_refusal() {
+    // An empty directory: no template.toml, so it is not a stamped app. The
+    // JSON error envelope lands on stdout (spec 004 §5.2), exit 1.
+    let dir = std::env::temp_dir().join(format!("stagecraft-cli-empty-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let out = run_in(
+        &dir,
+        &["--output", "json", "template", "upgrade", "--to", "0.1.5"],
+    );
+    assert_eq!(out.status.code(), Some(1), "not-a-stamped-app is exit 1");
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
+    assert_eq!(value["ok"], false);
+    assert_eq!(value["error"]["kind"], "not_stamped");
+}
+
+#[test]
+fn template_upgrade_pre_018_app_is_refused() {
+    // A stamped app whose package.json carries no chassis packages: pre-018.
+    let dir = stamped_fixture(
+        TOOLCHAIN_TOML,
+        "{\n  \"name\": \"legacy\",\n  \"dependencies\": { \"left-pad\": \"^1.0.0\" }\n}\n",
+    );
+    let out = run_in(
+        &dir,
+        &["--output", "json", "template", "upgrade", "--to", "0.1.5"],
+    );
+    assert_eq!(out.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
+    assert_eq!(value["error"]["kind"], "pre_chassis");
+}
+
+#[test]
+fn template_upgrade_dry_run_plans_without_mutating() {
+    // Dry run reaches no git/npm: it reads, plans, and reports. It must change
+    // nothing on disk and exit 0 with the machine result.
+    let package = "{\n  \"name\": \"app\",\n  \"devDependencies\": {\n    \"@enrahitu/toolchain\": \"0.1.0\"\n  }\n}\n";
+    let dir = stamped_fixture(TOOLCHAIN_TOML, package);
+    let out = run_in(
+        &dir,
+        &[
+            "--output",
+            "json",
+            "template",
+            "upgrade",
+            "--to",
+            "0.1.5",
+            "--dry-run",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(0));
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
+    assert_eq!(value["ok"], true);
+    assert_eq!(value["data"]["to"], "0.1.5");
+    assert_eq!(value["data"]["dryRun"], true);
+    // Byte-for-byte unchanged.
+    assert_eq!(
+        std::fs::read_to_string(dir.join("package.json")).unwrap(),
+        package
+    );
 }

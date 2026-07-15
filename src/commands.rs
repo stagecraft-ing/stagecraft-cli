@@ -12,7 +12,9 @@ use std::path::PathBuf;
 use clap::CommandFactory;
 use serde::Serialize;
 
-use crate::cli::{Cli, Command, ConfigCommand, FleetCommand, StampCommand, TenantsCommand};
+use crate::cli::{
+    Cli, Command, ConfigCommand, FleetCommand, StampCommand, TemplateCommand, TenantsCommand,
+};
 use crate::config::{self, FlagConfig, ResolvedConfig, Sourced};
 use crate::error::AppResult;
 use crate::output::{self, OutputFormat};
@@ -28,6 +30,7 @@ pub fn dispatch(cli: Cli) -> AppResult<()> {
         Command::Tenants { command } => tenants(command, &resolved, format, cli.debug),
         Command::Stamp { command } => stamp(command, &resolved, format, cli.debug),
         Command::Fleet { command } => fleet(command, &resolved, format, cli.debug),
+        Command::Template { command } => template(command, format, cli.debug),
         Command::Mcp { print_config } => {
             if *print_config {
                 crate::mcp::print_config(&resolved)
@@ -133,6 +136,27 @@ fn fleet(
         FleetCommand::Remove { app_id, confirm } => {
             fleet::remove(resolved, format, debug, app_id, confirm)
         }
+    }
+}
+
+// --- local governed verb (spec 006) ----------------------------------------
+
+/// `template upgrade`: the one verb that never touches the control plane. It
+/// operates on the stamped app checkout in the current working directory, so it
+/// takes no `resolved` config (no base URL, no token); the app dir is cwd.
+fn template(command: &TemplateCommand, format: OutputFormat, debug: bool) -> AppResult<()> {
+    use crate::verbs::template;
+    let dir = std::env::current_dir().map_err(|e| {
+        crate::error::AppError::Operational(anyhow::anyhow!(
+            "cannot determine the current directory: {e}"
+        ))
+    })?;
+    match command {
+        TemplateCommand::Upgrade {
+            to,
+            dry_run,
+            no_branch,
+        } => template::upgrade(&dir, to.as_deref(), *dry_run, *no_branch, format, debug),
     }
 }
 

@@ -24,6 +24,10 @@ clap_complete = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
+# Semantic-version comparison for the template upgrade verb (spec 006): the
+# compat gate matches a target against the contract's `[requires]` range.
+# Pure Rust, no TLS surface; keeps the tree rustls-only.
+semver = "1"
 # Error handling: anyhow for operational context, thiserror for the taxonomy.
 anyhow = "1"
 thiserror = "2"

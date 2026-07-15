@@ -1,21 +1,25 @@
 {
-  "diagnostics": {
-    "errors": [],
-    "warnings": [
-      {
-        "code": "W-001",
-        "message": "spec '006-template-upgrade-verb' symbol unit 'stagecraft_cli::verbs::template' did not resolve"
-      }
-    ]
-  },
   "mapping": {
     "dependsOn": [
       "002-crate-scaffold"
     ],
-    "implementingPaths": [],
+    "implementingPaths": [
+      {
+        "path": "src/verbs/mod.rs",
+        "source": "spec-edge"
+      }
+    ],
     "resolvedUnits": [
       {
-        "locations": [],
+        "locations": [
+          {
+            "file": "src/verbs/mod.rs",
+            "span": {
+              "endLine": 19,
+              "startLine": 19
+            }
+          }
+        ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
@@ -28,5 +32,5 @@
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "8f277e7de51ae5e57e7866e965f5e35b265d7cbcd8620b22acc8aa2b948fad2b"
+  "shardHash": "dfc07fb9566e067f5e7850b1ce101bfd545cb104499f819f51e76f98f5d23c74"
 }
