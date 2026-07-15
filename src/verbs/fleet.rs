@@ -7,10 +7,62 @@ use std::fmt::Write;
 use serde_json::{json, Map, Value};
 
 use super::{as_array, client_for, field, render, require_field, table};
-use crate::api::block_on;
+use crate::api::{block_on, ApiClient, ApiError};
 use crate::config::ResolvedConfig;
 use crate::error::AppResult;
 use crate::output::OutputFormat;
+
+/// GET /api/v1/tenants/:id/fleet: the `fleet list` request, shared by both faces
+/// (spec 005 reuses each of these for the matching MCP tool).
+pub(crate) async fn list_request(client: &ApiClient, tenant: &str) -> Result<Value, ApiError> {
+    client
+        .get_value(&format!("/api/v1/tenants/{tenant}/fleet"))
+        .await
+}
+
+/// POST /api/v1/tenants/:id/fleet {name, image}: the `fleet deploy` request.
+pub(crate) async fn deploy_request(
+    client: &ApiClient,
+    tenant: &str,
+    app: &str,
+    image: &str,
+) -> Result<Value, ApiError> {
+    let path = format!("/api/v1/tenants/{tenant}/fleet");
+    let mut body = Map::new();
+    body.insert("name".to_string(), Value::String(app.to_string()));
+    body.insert("image".to_string(), Value::String(image.to_string()));
+    client.post_value(&path, Value::Object(body)).await
+}
+
+/// POST /api/v1/fleet/:appId/update {image}: the `fleet update` request.
+pub(crate) async fn update_request(
+    client: &ApiClient,
+    app_id: &str,
+    image: &str,
+) -> Result<Value, ApiError> {
+    let path = format!("/api/v1/fleet/{app_id}/update");
+    client.post_value(&path, json!({ "image": image })).await
+}
+
+/// POST /api/v1/fleet/:appId/backup: the `fleet backup` request.
+pub(crate) async fn backup_request(client: &ApiClient, app_id: &str) -> Result<Value, ApiError> {
+    let path = format!("/api/v1/fleet/{app_id}/backup");
+    client.post_value(&path, json!({})).await
+}
+
+/// DELETE /api/v1/fleet/:appId {confirm}: the `fleet remove` request. The
+/// confirm name is echoed in the body (stagecraft spec 006 §3); the platform
+/// rejects a mismatch, so both faces forward it as-is rather than pre-judging.
+pub(crate) async fn remove_request(
+    client: &ApiClient,
+    app_id: &str,
+    confirm: &str,
+) -> Result<Value, ApiError> {
+    let path = format!("/api/v1/fleet/{app_id}");
+    client
+        .delete_value(&path, json!({ "confirm": confirm }))
+        .await
+}
 
 /// `fleet list --tenant <id>` -> GET /api/v1/tenants/:id/fleet.
 pub fn list(
@@ -20,8 +72,7 @@ pub fn list(
     tenant: &str,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/tenants/{tenant}/fleet");
-    let result = block_on(client.get_value(&path))?;
+    let result = block_on(list_request(&client, tenant))?;
     render(format, result, render_list)
 }
 
@@ -36,11 +87,7 @@ pub fn deploy(
     image: &str,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/tenants/{tenant}/fleet");
-    let mut body = Map::new();
-    body.insert("name".to_string(), Value::String(app.to_string()));
-    body.insert("image".to_string(), Value::String(image.to_string()));
-    let result = block_on(client.post_value(&path, Value::Object(body)))?;
+    let result = block_on(deploy_request(&client, tenant, app, image))?;
     render(format, result, render_app)
 }
 
@@ -53,9 +100,7 @@ pub fn update(
     image: &str,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/fleet/{app_id}/update");
-    let body = json!({ "image": image });
-    let result = block_on(client.post_value(&path, body))?;
+    let result = block_on(update_request(&client, app_id, image))?;
     render(format, result, render_app)
 }
 
@@ -67,14 +112,11 @@ pub fn backup(
     app_id: &str,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/fleet/{app_id}/backup");
-    let result = block_on(client.post_value(&path, json!({})))?;
+    let result = block_on(backup_request(&client, app_id))?;
     render(format, result, render_op)
 }
 
-/// `fleet remove <appId> --confirm <name>` -> DELETE /api/v1/fleet/:appId. The
-/// confirm name is echoed in the body (stagecraft spec 006 §3); the platform
-/// rejects a mismatch, so the CLI forwards it as-is rather than pre-judging.
+/// `fleet remove <appId> --confirm <name>` -> DELETE /api/v1/fleet/:appId.
 pub fn remove(
     resolved: &ResolvedConfig,
     format: OutputFormat,
@@ -83,9 +125,7 @@ pub fn remove(
     confirm: &str,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/fleet/{app_id}");
-    let body = json!({ "confirm": confirm });
-    let result = block_on(client.delete_value(&path, body))?;
+    let result = block_on(remove_request(&client, app_id, confirm))?;
     render(format, result, render_app)
 }
 
@@ -290,7 +330,7 @@ mod tests {
     #[test]
     fn fleet_envelope_snapshot() {
         let data = json!({"id": "a_1", "name": "smoke", "status": "placing"});
-        let env = crate::verbs::success_envelope(&data);
+        let env = crate::verbs::success_envelope_value(&data);
         assert_eq!(env, json!({ "ok": true, "data": data }));
     }
 }

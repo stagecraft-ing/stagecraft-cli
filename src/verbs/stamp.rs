@@ -17,8 +17,40 @@ const WATCH_INITIAL: Duration = Duration::from_secs(2);
 /// The poll-interval ceiling for `--watch` (spec 004 §5.4).
 const WATCH_MAX: Duration = Duration::from_secs(10);
 
-/// `stamp new` -> POST /api/v1/tenants/:id/stamps. `posture` is always sent
-/// (the flag is required); `frontend` only when supplied.
+/// POST /api/v1/tenants/:id/stamps: the `stamp new` request, shared by both
+/// faces (the CLI renders it, the MCP `stamp_new` tool returns its envelope,
+/// spec 005). `posture` is always sent (it is required, never defaulted);
+/// `frontend` only when supplied.
+pub(crate) async fn new_request(
+    client: &ApiClient,
+    tenant: &str,
+    app: &str,
+    org: &str,
+    frontend: Option<&str>,
+    posture: Posture,
+) -> Result<Value, ApiError> {
+    let path = format!("/api/v1/tenants/{tenant}/stamps");
+    let mut body = Map::new();
+    body.insert("appName".to_string(), Value::String(app.to_string()));
+    body.insert("targetOrg".to_string(), Value::String(org.to_string()));
+    body.insert(
+        "posture".to_string(),
+        Value::String(posture.as_wire().to_string()),
+    );
+    if let Some(frontend) = frontend {
+        body.insert("frontend".to_string(), Value::String(frontend.to_string()));
+    }
+    client.post_value(&path, Value::Object(body)).await
+}
+
+/// GET /api/v1/stamps/:jobId: a single status poll. The CLI non-watch path and
+/// the MCP `stamp_status` tool share it (spec 005: MCP polls once, the agent
+/// loops itself); the CLI `--watch` loop drives the same endpoint below.
+pub(crate) async fn status_request(client: &ApiClient, job_id: &str) -> Result<Value, ApiError> {
+    client.get_value(&format!("/api/v1/stamps/{job_id}")).await
+}
+
+/// `stamp new` -> POST /api/v1/tenants/:id/stamps.
 #[allow(clippy::too_many_arguments)]
 pub fn new(
     resolved: &ResolvedConfig,
@@ -31,20 +63,7 @@ pub fn new(
     posture: Posture,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/tenants/{tenant}/stamps");
-
-    let mut body = Map::new();
-    body.insert("appName".to_string(), Value::String(app.to_string()));
-    body.insert("targetOrg".to_string(), Value::String(org.to_string()));
-    body.insert(
-        "posture".to_string(),
-        Value::String(posture.as_wire().to_string()),
-    );
-    if let Some(frontend) = frontend {
-        body.insert("frontend".to_string(), Value::String(frontend.to_string()));
-    }
-
-    let result = block_on(client.post_value(&path, Value::Object(body)))?;
+    let result = block_on(new_request(&client, tenant, app, org, frontend, posture))?;
     render(format, result, render_stamp)
 }
 
@@ -57,11 +76,11 @@ pub fn status(
     watch: bool,
 ) -> AppResult<()> {
     let client = client_for(resolved, debug)?;
-    let path = format!("/api/v1/stamps/{job_id}");
     if watch {
+        let path = format!("/api/v1/stamps/{job_id}");
         block_on(watch_loop(&client, &path, format))?
     } else {
-        let result = block_on(client.get_value(&path))?;
+        let result = block_on(status_request(&client, job_id))?;
         render(format, result, render_stamp)
     }
 }
@@ -304,7 +323,7 @@ mod tests {
     #[test]
     fn stamp_envelope_snapshot() {
         let data = json!({"id": "j_1", "status": "queued"});
-        let env = crate::verbs::success_envelope(&data);
+        let env = crate::verbs::success_envelope_value(&data);
         assert_eq!(env, json!({ "ok": true, "data": data }));
     }
 }

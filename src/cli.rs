@@ -62,7 +62,11 @@ pub enum Command {
         command: FleetCommand,
     },
     /// Run the MCP server over stdio (spec 005).
-    Mcp,
+    Mcp {
+        /// Print the .mcp.json install snippet for this server, then exit.
+        #[arg(long)]
+        print_config: bool,
+    },
     /// Print version information.
     Version,
     /// Inspect configuration.
@@ -115,6 +119,18 @@ impl Posture {
             Posture::None => "none",
             Posture::Assisted => "assisted",
             Posture::Autonomous => "autonomous",
+        }
+    }
+
+    /// Parse a wire token back into a posture (the MCP `stamp_new` tool validates
+    /// its enum by hand, spec 005). Unknown tokens are rejected, not defaulted:
+    /// the platform never invents a posture and neither does either face.
+    pub fn from_wire(token: &str) -> Option<Self> {
+        match token {
+            "none" => Some(Posture::None),
+            "assisted" => Some(Posture::Assisted),
+            "autonomous" => Some(Posture::Autonomous),
+            _ => None,
         }
     }
 }

@@ -15,8 +15,8 @@
           {
             "file": "src/main.rs",
             "span": {
-              "endLine": 12,
-              "startLine": 12
+              "endLine": 13,
+              "startLine": 13
             }
           }
         ],
@@ -32,5 +32,5 @@
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "3314a5176288efdc33f1dcb517735e6ff3c09f8074431c7a51d77ff9fb1c39fc"
+  "shardHash": "3a8b9f30bdcbc6fc77507d7be059f9e25feeaaaab8208d8950eb68572cd29386"
 }

@@ -8,6 +8,7 @@ mod cli;
 mod commands;
 mod config;
 mod error;
+mod mcp;
 mod output;
 mod verbs;
 

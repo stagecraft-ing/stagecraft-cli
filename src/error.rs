@@ -15,7 +15,12 @@ pub const EXIT_USAGE: u8 = 2;
 /// The failure modes a command handler can surface to `main`.
 #[derive(Debug, Error)]
 pub enum AppError {
-    /// A stub verb whose real implementation arrives in a later spec.
+    /// A stub verb whose real implementation arrives in a later spec. This is
+    /// the "not-implemented" arm of the spec 002 §2 exit-2 taxonomy. With spec
+    /// 005 the last stub (`mcp`) is implemented, so no verb currently constructs
+    /// it; it is retained because the spec mandates the taxonomy and a later
+    /// spec scaffolds its command as a stub before implementing it.
+    #[allow(dead_code)]
     #[error("`stagecraft {command}` is not implemented until spec {spec}")]
     NotImplemented { command: String, spec: &'static str },
 
@@ -44,7 +49,9 @@ impl AppError {
         }
     }
 
-    /// Construct the stub error for a verb owned by a later spec.
+    /// Construct the stub error for a verb owned by a later spec (see
+    /// [`AppError::NotImplemented`]; currently unconstructed by any verb).
+    #[allow(dead_code)]
     pub fn not_implemented(command: impl Into<String>, spec: &'static str) -> Self {
         AppError::NotImplemented {
             command: command.into(),

@@ -249,16 +249,45 @@ fn browser_command(url: &str) -> std::process::Command {
     command
 }
 
-/// Build the success envelope as a JSON value (the printed form minus
-/// pretty-spacing), for per-verb snapshot tests locking the `{ok,data}` shape.
-#[cfg(test)]
-fn success_envelope(value: &Value) -> Value {
+/// Build the success envelope (`{ok:true,data}`) as an owned JSON value: the
+/// same shape [`emit_ok`] prints for `--output json`, produced without touching
+/// stdout. The MCP face (spec 005) returns it as the tool result; per-verb
+/// snapshot tests use it to lock the shape.
+pub(crate) fn success_envelope_value(data: &Value) -> Value {
     serde_json::to_value(Envelope {
         ok: true,
-        data: Some(value),
+        data: Some(data),
         error: None,
     })
     .expect("serializing an owned envelope cannot fail")
+}
+
+/// Build the failure envelope (`{ok:false,error}`) as an owned JSON value from
+/// an explicit taxonomy `kind`, message, and optional HTTP status. The MCP face
+/// uses this for pre-request failures (no base URL, no stored credential) so its
+/// tool-result errors carry the same `error` shape the API path emits.
+pub(crate) fn error_envelope(kind: &'static str, message: String, status: Option<u16>) -> Value {
+    serde_json::to_value(Envelope {
+        ok: false,
+        data: None,
+        error: Some(ErrorBody {
+            kind,
+            message,
+            status,
+        }),
+    })
+    .expect("serializing an owned envelope cannot fail")
+}
+
+/// Wrap a completed verb request in the passthrough envelope: `{ok:true,data}`
+/// on success, `{ok:false,error}` mapped from the taxonomy on failure. This is
+/// the value the MCP tool result carries (spec 005 §1), byte-for-byte what
+/// `--output json` prints for the CLI face (spec 004 §5.2).
+pub(crate) fn envelope_value(result: Result<Value, ApiError>) -> Value {
+    match result {
+        Ok(value) => success_envelope_value(&value),
+        Err(err) => error_envelope(err.kind(), err.to_string(), err.status()),
+    }
 }
 
 #[cfg(test)]
