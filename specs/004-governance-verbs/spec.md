@@ -71,3 +71,6 @@ target plane must surface as "not enabled on this control plane"
 - MCP exposure (005).
 - Any local stamping (stamping is the platform's job; the CLI only
   triggers and watches).
+- Local certificate verification: when the signed-cert path lands
+  (enrahitu spec 012 §7, born-with certVersion 2), verification is
+  repo-local via pinned tenant-tail; the CLI does not wrap it.
