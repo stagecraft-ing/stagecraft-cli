@@ -1,8 +1,10 @@
 //! Command dispatch and handlers (spec 002 §2).
 //!
-//! Stub verbs return [`AppError::NotImplemented`] (exit 2, spec named). The
-//! three working verbs (`version`, `config show`, `completions`) render through
-//! the shared output layer so `--output json` is honored uniformly.
+//! `mcp` is the last stub, returning [`AppError::NotImplemented`] (exit 2, spec
+//! named) until spec 005. The governance verbs (spec 004) live in
+//! [`crate::verbs`]; the local verbs (`version`, `config show`, `completions`)
+//! render through the shared output layer so `--output json` is honored
+//! uniformly.
 
 use std::io;
 use std::path::PathBuf;
@@ -23,9 +25,9 @@ pub fn dispatch(cli: Cli) -> AppResult<()> {
     match &cli.command {
         Command::Login => crate::auth::run_login(&resolved, format, cli.debug),
         Command::Whoami => crate::api::run_whoami(&resolved, format, cli.debug),
-        Command::Tenants { command } => tenants(command),
-        Command::Stamp { command } => stamp(command),
-        Command::Fleet { command } => fleet(command),
+        Command::Tenants { command } => tenants(command, &resolved, format, cli.debug),
+        Command::Stamp { command } => stamp(command, &resolved, format, cli.debug),
+        Command::Fleet { command } => fleet(command, &resolved, format, cli.debug),
         Command::Mcp => Err(AppError::not_implemented("mcp", "005-mcp-server")),
         Command::Version => {
             version(format);
@@ -58,42 +60,74 @@ fn load_config(cli: &Cli) -> AppResult<ResolvedConfig> {
     Ok(config::resolve(file, env, flags))
 }
 
-// --- stub verbs (spec 004) -------------------------------------------------
+// --- governance verbs (spec 004) -------------------------------------------
 
-fn tenants(command: &TenantsCommand) -> AppResult<()> {
-    let verb = match command {
-        TenantsCommand::List => "list",
-        TenantsCommand::Show => "show",
-    };
-    Err(AppError::not_implemented(
-        format!("tenants {verb}"),
-        "004-governance-verbs",
-    ))
+fn tenants(
+    command: &TenantsCommand,
+    resolved: &ResolvedConfig,
+    format: OutputFormat,
+    debug: bool,
+) -> AppResult<()> {
+    use crate::verbs::tenants;
+    match command {
+        TenantsCommand::List => tenants::list(resolved, format, debug),
+        TenantsCommand::Show { id } => tenants::show(resolved, format, debug, id),
+        TenantsCommand::InstallUrl { id, open } => {
+            tenants::install_url(resolved, format, debug, id, *open)
+        }
+    }
 }
 
-fn stamp(command: &StampCommand) -> AppResult<()> {
-    let verb = match command {
-        StampCommand::New => "new",
-        StampCommand::Status => "status",
-    };
-    Err(AppError::not_implemented(
-        format!("stamp {verb}"),
-        "004-governance-verbs",
-    ))
+fn stamp(
+    command: &StampCommand,
+    resolved: &ResolvedConfig,
+    format: OutputFormat,
+    debug: bool,
+) -> AppResult<()> {
+    use crate::verbs::stamp;
+    match command {
+        StampCommand::New {
+            tenant,
+            app,
+            org,
+            frontend,
+            posture,
+        } => stamp::new(
+            resolved,
+            format,
+            debug,
+            tenant,
+            app,
+            org,
+            frontend.as_deref(),
+            *posture,
+        ),
+        StampCommand::Status { job_id, watch } => {
+            stamp::status(resolved, format, debug, job_id, *watch)
+        }
+    }
 }
 
-fn fleet(command: &FleetCommand) -> AppResult<()> {
-    let verb = match command {
-        FleetCommand::List => "list",
-        FleetCommand::Deploy => "deploy",
-        FleetCommand::Update => "update",
-        FleetCommand::Backup => "backup",
-        FleetCommand::Remove => "remove",
-    };
-    Err(AppError::not_implemented(
-        format!("fleet {verb}"),
-        "004-governance-verbs",
-    ))
+fn fleet(
+    command: &FleetCommand,
+    resolved: &ResolvedConfig,
+    format: OutputFormat,
+    debug: bool,
+) -> AppResult<()> {
+    use crate::verbs::fleet;
+    match command {
+        FleetCommand::List { tenant } => fleet::list(resolved, format, debug, tenant),
+        FleetCommand::Deploy { tenant, app, image } => {
+            fleet::deploy(resolved, format, debug, tenant, app, image)
+        }
+        FleetCommand::Update { app_id, image } => {
+            fleet::update(resolved, format, debug, app_id, image)
+        }
+        FleetCommand::Backup { app_id } => fleet::backup(resolved, format, debug, app_id),
+        FleetCommand::Remove { app_id, confirm } => {
+            fleet::remove(resolved, format, debug, app_id, confirm)
+        }
+    }
 }
 
 // --- working verbs ---------------------------------------------------------

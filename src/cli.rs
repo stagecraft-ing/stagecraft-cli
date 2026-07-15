@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::output::OutputFormat;
 
@@ -79,32 +79,117 @@ pub enum Command {
 
 #[derive(Debug, Subcommand)]
 pub enum TenantsCommand {
-    /// List tenants (spec 004).
+    /// List the tenants you own (spec 004).
     List,
-    /// Show one tenant (spec 004).
-    Show,
+    /// Show one tenant, including its installations (spec 004).
+    Show {
+        /// Tenant id.
+        id: String,
+    },
+    /// Print the GitHub App install URL for a tenant (spec 004).
+    InstallUrl {
+        /// Tenant id.
+        id: String,
+        /// Open the URL in the default browser instead of only printing it.
+        #[arg(long)]
+        open: bool,
+    },
+}
+
+/// Governance posture for a stamp. Required with no default: the platform
+/// rejects a defaulted posture, so the CLI never invents one (spec 004 §5.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Posture {
+    /// No autonomous action; every step is operator-driven.
+    None,
+    /// Agent may act with a human in the loop.
+    Assisted,
+    /// Agent may act autonomously within its guardrails.
+    Autonomous,
+}
+
+impl Posture {
+    /// The wire token sent to the control plane (`posture` field).
+    pub fn as_wire(self) -> &'static str {
+        match self {
+            Posture::None => "none",
+            Posture::Assisted => "assisted",
+            Posture::Autonomous => "autonomous",
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
 pub enum StampCommand {
-    /// Request a new governance stamp (spec 004).
-    New,
-    /// Check stamp status (spec 004).
-    Status,
+    /// Request a new governance stamp: born-green repo in a customer org (spec 004).
+    New {
+        /// Tenant id the stamp is charged to.
+        #[arg(long)]
+        tenant: String,
+        /// Application name for the stamped repo.
+        #[arg(long)]
+        app: String,
+        /// Target GitHub org the repo is created in.
+        #[arg(long)]
+        org: String,
+        /// Optional frontend flavor slot (e.g. `vue`).
+        #[arg(long)]
+        frontend: Option<String>,
+        /// Governance posture (required; the platform never defaults it).
+        #[arg(long, value_enum)]
+        posture: Posture,
+    },
+    /// Check stamp status; `--watch` streams until the job settles (spec 004).
+    Status {
+        /// Stamp job id.
+        job_id: String,
+        /// Poll until the job reaches green or failed, streaming state changes.
+        #[arg(long)]
+        watch: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
 pub enum FleetCommand {
-    /// List fleet members (spec 004).
-    List,
-    /// Deploy to the fleet (spec 004).
-    Deploy,
-    /// Update fleet members (spec 004).
-    Update,
-    /// Back up fleet state (spec 004).
-    Backup,
-    /// Remove a fleet member (spec 004).
-    Remove,
+    /// List a tenant's fleet apps (spec 004).
+    List {
+        /// Tenant id whose fleet is listed.
+        #[arg(long)]
+        tenant: String,
+    },
+    /// Deploy an image as a new fleet app (spec 004).
+    Deploy {
+        /// Tenant id the app belongs to.
+        #[arg(long)]
+        tenant: String,
+        /// Fleet app name.
+        #[arg(long)]
+        app: String,
+        /// Container image reference to place.
+        #[arg(long)]
+        image: String,
+    },
+    /// Roll a fleet app to a new image (spec 004).
+    Update {
+        /// Fleet app id.
+        app_id: String,
+        /// New container image reference.
+        #[arg(long)]
+        image: String,
+    },
+    /// Back up a fleet app's volume (spec 004).
+    Backup {
+        /// Fleet app id.
+        app_id: String,
+    },
+    /// Remove a fleet app; `--confirm <name>` must echo the app name (spec 004).
+    Remove {
+        /// Fleet app id.
+        app_id: String,
+        /// The app's literal name, echoed to authorize the teardown.
+        #[arg(long)]
+        confirm: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

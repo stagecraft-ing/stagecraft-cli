@@ -16,27 +16,82 @@ fn run(args: &[&str]) -> Output {
 
 #[test]
 fn stub_verb_exits_2_names_spec_and_keeps_stdout_clean() {
-    // One representative stub per still-unimplemented owning spec. login and
-    // whoami left this list when spec 003 implemented them.
-    for (args, spec) in [
-        (["tenants", "list"].as_slice(), "004"),
-        (["stamp", "new"].as_slice(), "004"),
-        (["fleet", "remove"].as_slice(), "004"),
-        (["mcp"].as_slice(), "005"),
+    // `mcp` is the last stub: login/whoami left when spec 003 landed, and
+    // tenants/stamp/fleet left when spec 004 implemented them.
+    let out = run(&["mcp"]);
+    assert_eq!(out.status.code(), Some(2), "mcp should exit 2");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("005"),
+        "mcp stderr should name spec 005, got: {stderr}"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "errors must not print to stdout, got: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
+fn governance_verbs_without_base_url_are_usage_errors() {
+    // The spec 004 verbs reach the base-URL guard before any network call;
+    // omitting it is misuse (exit 2), same contract as login/whoami. Each is
+    // given its required flags/args so clap does not reject it first.
+    for args in [
+        ["tenants", "list"].as_slice(),
+        ["fleet", "list", "--tenant", "t_1"].as_slice(),
+        ["stamp", "status", "j_1"].as_slice(),
     ] {
         let out = run(args);
         assert_eq!(out.status.code(), Some(2), "args {args:?} should exit 2");
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(
-            stderr.contains(spec),
-            "args {args:?}: stderr should name spec {spec}, got: {stderr}"
+            stderr.contains("base URL"),
+            "args {args:?}: stderr should name the missing base URL, got: {stderr}"
         );
         assert!(
             out.stdout.is_empty(),
-            "args {args:?}: errors must not print to stdout, got: {:?}",
-            String::from_utf8_lossy(&out.stdout)
+            "args {args:?}: errors must not print to stdout"
         );
     }
+}
+
+#[test]
+fn governance_verb_without_a_credential_exits_1_with_login_hint() {
+    // With a base URL but no stored token, a spec 004 verb short-circuits to the
+    // unauthenticated error before any network call (hermetic), like whoami.
+    let out = run(&[
+        "tenants",
+        "list",
+        "--base-url",
+        "https://unconfigured.plane.invalid",
+    ]);
+    assert_eq!(out.status.code(), Some(1), "no credential is exit 1");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("stagecraft login"),
+        "stderr should hint at login, got: {stderr}"
+    );
+    assert!(out.stdout.is_empty(), "errors must not print to stdout");
+}
+
+#[test]
+fn stamp_new_requires_a_posture() {
+    // Posture is a required flag with no default (spec 004 §5.1): omitting it is
+    // a clap usage error (exit 2), so the CLI never invents a posture.
+    let out = run(&[
+        "stamp", "new", "--tenant", "t_1", "--app", "x", "--org", "acme",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --posture should exit 2"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("posture"),
+        "stderr should name the missing posture, got: {stderr}"
+    );
 }
 
 #[test]

@@ -12,6 +12,7 @@ use std::time::Duration;
 use reqwest::{Method, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::config::ResolvedConfig;
 use crate::error::{AppError, AppResult};
@@ -61,6 +62,28 @@ impl std::fmt::Display for ApiError {
 }
 
 impl std::error::Error for ApiError {}
+
+impl ApiError {
+    /// The stable `kind` token for the JSON error envelope (spec 004 §5.2). One
+    /// token per taxonomy variant; the MCP face keys off these too (spec 005).
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ApiError::Network(_) => "network",
+            ApiError::Unauthenticated => "unauthenticated",
+            ApiError::Api { .. } => "api",
+            ApiError::Server { .. } => "server",
+            ApiError::Decode(_) => "decode",
+        }
+    }
+
+    /// The HTTP status the error carries, when it originated from a response.
+    pub fn status(&self) -> Option<u16> {
+        match self {
+            ApiError::Api { status, .. } | ApiError::Server { status } => Some(*status),
+            _ => None,
+        }
+    }
+}
 
 /// Every API failure is an operational failure (exit 1), including 401: an
 /// unauthenticated call is a runtime condition the operator resolves by
@@ -130,16 +153,53 @@ impl ApiClient {
         format!("{}/{}", self.base_url, path.trim_start_matches('/'))
     }
 
-    /// Send a retrying request, then map status + body onto the taxonomy.
+    /// GET a path and deserialize the 2xx body into `T`: spec 003's typed path,
+    /// used by `fetch_identity`. Routes through the same request pipeline as the
+    /// spec 004 passthrough verbs.
     async fn get_json<T: DeserializeOwned>(&self, path: &str) -> Result<T, ApiError> {
-        let (status, body) = self.send_retrying(Method::GET, path).await?;
+        let value = self.get_value(path).await?;
+        serde_json::from_value(value).map_err(|e| ApiError::Decode(e.to_string()))
+    }
+
+    /// GET a path as an opaque JSON value: the spec 004 passthrough, wrapped by
+    /// the verb layer's `{ok,data}` envelope without reshaping the payload.
+    pub async fn get_value(&self, path: &str) -> Result<Value, ApiError> {
+        self.send_json(Method::GET, path, None).await
+    }
+
+    /// POST a JSON `body` to `path` and return the 2xx response value.
+    pub async fn post_value(&self, path: &str, body: Value) -> Result<Value, ApiError> {
+        self.send_json(Method::POST, path, Some(&body)).await
+    }
+
+    /// DELETE `path` carrying a JSON `body` (the fleet remove confirm guard,
+    /// spec 004 §5.1) and return the 2xx response value.
+    pub async fn delete_value(&self, path: &str, body: Value) -> Result<Value, ApiError> {
+        self.send_json(Method::DELETE, path, Some(&body)).await
+    }
+
+    /// Send a retrying request, then map status + body onto the taxonomy. A 2xx
+    /// with an empty body (a 204-style response) decodes to JSON null so the
+    /// passthrough envelope still has a `data` value.
+    async fn send_json(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&Value>,
+    ) -> Result<Value, ApiError> {
+        let (status, text) = self.send_retrying(method, path, body).await?;
         if status.as_u16() == 401 {
             return Err(ApiError::Unauthenticated);
         }
         if status.is_client_error() {
+            let message = if status.as_u16() == 404 {
+                not_found_message(&text)
+            } else {
+                server_message(&text)
+            };
             return Err(ApiError::Api {
                 status: status.as_u16(),
-                message: server_message(&body),
+                message,
             });
         }
         if status.is_server_error() {
@@ -147,16 +207,29 @@ impl ApiClient {
                 status: status.as_u16(),
             });
         }
-        serde_json::from_str(&body).map_err(|e| ApiError::Decode(e.to_string()))
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return Ok(Value::Null);
+        }
+        serde_json::from_str(trimmed).map_err(|e| ApiError::Decode(e.to_string()))
     }
 
     /// One HTTP attempt: send, optionally emit `--debug` metadata, return the
-    /// status and body text. The Authorization header is never logged.
-    async fn attempt(&self, method: Method, path: &str) -> Result<(StatusCode, String), ApiError> {
+    /// status and body text. Neither the Authorization header nor the request
+    /// body is ever logged.
+    async fn attempt(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&Value>,
+    ) -> Result<(StatusCode, String), ApiError> {
         let url = self.url(path);
         let mut req = self.http.request(method.clone(), url.as_str());
         if let Some(token) = &self.token {
             req = req.bearer_auth(token);
+        }
+        if let Some(body) = body {
+            req = req.json(body);
         }
         let start = std::time::Instant::now();
         let resp = req
@@ -171,11 +244,11 @@ impl ApiClient {
                 start.elapsed().as_millis()
             );
         }
-        let body = resp
+        let text = resp
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        Ok((status, body))
+        Ok((status, text))
     }
 
     /// Retry idempotent GETs on transient failure (network error or 5xx) with
@@ -184,18 +257,19 @@ impl ApiClient {
         &self,
         method: Method,
         path: &str,
+        body: Option<&Value>,
     ) -> Result<(StatusCode, String), ApiError> {
         let retryable = is_retryable_method(&method);
         let mut attempt = 0u32;
         loop {
             attempt += 1;
-            match self.attempt(method.clone(), path).await {
-                Ok((status, body)) => {
+            match self.attempt(method.clone(), path, body).await {
+                Ok((status, text)) => {
                     if status.is_server_error() && retryable && attempt < MAX_ATTEMPTS {
                         backoff(attempt).await;
                         continue;
                     }
-                    return Ok((status, body));
+                    return Ok((status, text));
                 }
                 Err(err) => {
                     if retryable && attempt < MAX_ATTEMPTS {
@@ -293,6 +367,19 @@ fn jitter_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// A 404 on a governance endpoint means either the service is not enabled on
+/// this control plane (spec 004 §1: a service that does not exist yet) or the
+/// addressed resource is gone. Prefer the plane's own message; when it gives
+/// none, name both possibilities rather than a bare "returned 404".
+fn not_found_message(body: &str) -> String {
+    let server = server_message(body);
+    if server == "(no message)" {
+        "not enabled on this control plane, or the resource does not exist".to_string()
+    } else {
+        server
+    }
+}
+
 /// Extract a human-facing message from an error body: the chassis `message`
 /// field when present, else the trimmed body, else a placeholder.
 fn server_message(body: &str) -> String {
@@ -340,6 +427,40 @@ mod tests {
         assert_eq!(server_message(r#"{"code":"x","message":"boom"}"#), "boom");
         assert_eq!(server_message("plain text"), "plain text");
         assert_eq!(server_message("   "), "(no message)");
+    }
+
+    #[test]
+    fn not_found_message_names_the_not_enabled_case() {
+        // A bodyless 404 (a missing/unmounted service) names both possibilities.
+        assert!(not_found_message("").contains("not enabled on this control plane"));
+        // A 404 the plane explains keeps the plane's own message.
+        assert_eq!(
+            not_found_message(r#"{"message":"tenant t_9 not found"}"#),
+            "tenant t_9 not found"
+        );
+    }
+
+    #[test]
+    fn missing_service_404_maps_to_exit_one_not_a_crash() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/api/v1/tenants");
+            then.status(404); // an unmounted service: no body
+        });
+
+        let client = ApiClient::new(server.base_url(), Some("tok".into()), false).unwrap();
+        // Returning an Err (never panicking) is the "not a crash" half; the
+        // ApiError -> operational exit-code (1) half is `api_errors_map_to_...`.
+        let err = block_on(client.get_value("/api/v1/tenants"))
+            .unwrap()
+            .unwrap_err();
+        match err {
+            ApiError::Api { status, message } => {
+                assert_eq!(status, 404);
+                assert!(message.contains("not enabled on this control plane"));
+            }
+            other => panic!("expected Api 404, got {other:?}"),
+        }
     }
 
     #[test]
@@ -450,7 +571,7 @@ mod tests {
         });
 
         let client = ApiClient::new(server.base_url(), None, false).unwrap();
-        let (status, _) = block_on(client.send_retrying(Method::GET, "/boom"))
+        let (status, _) = block_on(client.send_retrying(Method::GET, "/boom", None))
             .unwrap()
             .unwrap();
 
@@ -467,7 +588,7 @@ mod tests {
         });
 
         let client = ApiClient::new(server.base_url(), None, false).unwrap();
-        let (status, _) = block_on(client.send_retrying(Method::POST, "/boom"))
+        let (status, _) = block_on(client.send_retrying(Method::POST, "/boom", None))
             .unwrap()
             .unwrap();
 

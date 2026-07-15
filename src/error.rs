@@ -23,6 +23,12 @@ pub enum AppError {
     #[error("{0}")]
     Usage(String),
 
+    /// A failure already written to stdout as the JSON `{ok:false,error}`
+    /// envelope (spec 004 §5.2). `main` exits with `code` and prints nothing
+    /// more, so the envelope is not doubled by a stderr line.
+    #[error("")]
+    Rendered { code: u8 },
+
     /// Any operational failure; carries anyhow context up to `main`.
     #[error(transparent)]
     Operational(#[from] anyhow::Error),
@@ -33,6 +39,7 @@ impl AppError {
     pub fn code(&self) -> u8 {
         match self {
             AppError::NotImplemented { .. } | AppError::Usage(_) => EXIT_USAGE,
+            AppError::Rendered { code } => *code,
             AppError::Operational(_) => EXIT_OPERATIONAL,
         }
     }
