@@ -9,10 +9,14 @@
 //!
 //! Submodules ([`tenants`], [`stamp`], [`fleet`]) hold one verb family each and
 //! call the private helpers here directly (a child module sees its parent's
-//! private items).
+//! private items). [`template`] (spec 006) is the exception: a *local* verb that
+//! never calls the control plane (it operates on a stamped app checkout), yet
+//! still renders through the same `{ok,data|error}` envelope
+//! ([`success_envelope_value`], [`error_envelope`]) so both faces stay uniform.
 
 pub mod fleet;
 pub mod stamp;
+pub mod template;
 pub mod tenants;
 
 use serde::Serialize;

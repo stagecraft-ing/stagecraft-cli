@@ -3,7 +3,7 @@ id: "006-template-upgrade-verb"
 title: "stagecraft template upgrade: chassis upgrades as a governed verb"
 status: approved
 created: "2026-07-14"
-implementation: pending
+implementation: in-progress
 depends_on:
   - "002-crate-scaffold"
 establishes:
@@ -84,3 +84,83 @@ re-import path; do not attempt a tree merge.
   018 owns the packages; this verb only consumes published versions).
 - Automatic PR creation and merge (deliberate: a human or the
   platform decides; v1 prints the suggestion).
+
+## 5. Status (2026-07-15)
+
+Implemented: `stagecraft template upgrade` in the new
+`stagecraft_cli::verbs::template` module (the symbol this spec
+establishes). It is the one *local* governed verb: unlike the spec 004
+verbs it never calls the control plane. It reads `template.toml`, bumps
+the chassis package pins in `package.json`, refreshes the lockfile,
+runs the reserved codemod hook, runs the contract's verify verb, and
+commits on a `template-upgrade/<from>-<to>` branch, emitting the §2.6
+`{from, to, pins, codemodsRun, verify}` result inside the shared
+`{ok,data|error}` envelope. The enrahitu spec 018 gate is cleared
+(chassis packages published at v0.1.0, `implementation: complete`), so
+this verb is no longer parked.
+
+v1 decisions (surfaced here for review rather than encoded silently):
+
+- **Target ↔ pin coupling.** The template version and chassis package
+  version move in lockstep (enrahitu ships root, `template.toml`, and
+  all `@enrahitu/*` packages at one version), so the resolved target is
+  applied as the exact pin for each discovered chassis package.
+- **Compat gate = the contract's own ranges.** A `--to` (or resolved
+  latest) that does not satisfy `[requires]`'s chassis range is the
+  "major upgrade requires the migration path" refusal
+  (`incompatible_target`). When a contract names more than one chassis
+  range, the target must satisfy *all* of them, so no range can be
+  crossed silently. The version policy stays in the template.
+- **Chassis discovery is scope-derived.** Seeds are `package.json`
+  deps whose unscoped name matches a `[requires]` key (so `node` drops
+  out and `toolchain` resolves to `@enrahitu/toolchain`); the bump set
+  is every exact-pinned dep sharing a seed's scope, catching companions
+  like `@enrahitu/hiqlite-native` with no hardcoded scope in the CLI.
+  Accepted trade-off: this assumes every exact-pinned package under a
+  chassis scope releases in lockstep with the chassis (true for
+  `@enrahitu/*` today); an independently-versioned same-scope package
+  would need an allowlist, revisited if enrahitu ever ships one.
+- **Refusal taxonomy** (all exit 1, JSON `error.kind`): `not_stamped`
+  (no `template.toml`/`package.json`), `pre_chassis` (spec 006 §1: no
+  chassis packages), `local_chassis` (chassis present but as `file:`
+  links, i.e. a template-development tree, not a stamped app),
+  `bad_target`, `incompatible_target`, `dirty_tree`. Preflight order:
+  structural refusals first, then the dirty-tree gate (before target
+  resolution, so a dirty tree fails fast with no wasted registry read),
+  then target/compat. A verify failure is not a refusal: matching how
+  `stamp status --watch` renders a terminal `failed` job, it is a
+  completed run whose `{ok:true, data}` result carries `verify:"fail"`
+  and whose exit code (1) carries the failure, with the branch left for
+  inspection. The two-shape envelope contract holds (`ok:true` -> read
+  `data`, `ok:false` -> read `error`); the verdict lives in the data.
+- **Dependency added:** `semver` (pure Rust) for correct
+  version/range comparison. Couples to spec 002's Cargo territory; the
+  standing `Spec-Drift-Waiver` covers the crate-file edits. Note: this
+  is Cargo-flavored semver, where a bare `[requires]` range (`"0.1.0"`)
+  parses as caret, not an npm exact pin; contract authors must write an
+  explicit operator (`^0.1`, `>=24`), as enrahitu's contract does.
+- **`--to` omitted** resolves the greatest published version the range
+  allows via an `npm view` registry read, behind the runner seam so
+  tests stay offline.
+
+Covered by tests (all offline; every git/npm/node effect is behind a
+`Runner` trait): scope-derived discovery with companions, the
+`pre_chassis`/`local_chassis`/`not_stamped`/`incompatible_target`/`dirty_tree`
+refusals, the multi-range gate refusing when any seed range excludes
+the target, format-preserving pin rewrite, the dry-run plan that
+mutates nothing, latest-resolution when `--to` is omitted, the no-op
+that still bumps a companion left behind the primary, the happy path
+(branch -> lock -> verify -> commit), the verify-failure path that
+leaves the branch uncommitted, and the result envelope staying
+`{ok:true, data:{verify:"fail"}}` with a `Rendered` exit 1. Three
+end-to-end binary checks drive the offline paths (not-stamped,
+pre-018, dry-run) with the process working directory set to a fixture.
+
+Outstanding: the §3 live check cannot run yet. It needs a real stamped
+app carrying published-version chassis pins plus a newer published
+template version to upgrade across; enrahitu's scaffold verb (spec 014)
+is still v0 and "edits no dependencies", so no such app exists, and
+there is only the v0.1.0 release to pin to. This spec stays
+`implementation: in-progress` until a stamped app and a patch release
+exist; at that point the only open item is the live upgrade transcript
+(no code change), and the commit records its pointer.
