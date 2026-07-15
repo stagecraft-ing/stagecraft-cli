@@ -817,7 +817,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(GET).path("/api/v1/tenants");
             then.status(200)
-                .json_body(json!([{ "id": "t_1", "name": "Acme" }]));
+                .json_body(json!({ "tenants": [{ "id": "t_1", "name": "Acme" }] }));
         });
         let out = drive(
             &authed_ctx(&server.base_url()),
@@ -835,7 +835,10 @@ mod tests {
         let call = out.iter().find(|r| r["id"] == 3).unwrap();
         assert_eq!(call["result"]["isError"], false);
         assert_eq!(call["result"]["structuredContent"]["ok"], true);
-        assert_eq!(call["result"]["structuredContent"]["data"][0]["id"], "t_1");
+        assert_eq!(
+            call["result"]["structuredContent"]["data"]["tenants"][0]["id"],
+            "t_1"
+        );
         let text = call["result"]["content"][0]["text"].as_str().unwrap();
         assert!(text.contains("t_1"), "the text content carries the record");
     }

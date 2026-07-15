@@ -3,7 +3,7 @@ id: "003-auth-api-client"
 title: "Auth + control-plane API client"
 status: approved
 created: "2026-07-14"
-implementation: in-progress
+implementation: complete
 depends_on:
   - "002-crate-scaffold"
 establishes:
@@ -127,11 +127,13 @@ store (0600, per-base-url), `login` (paste handoff) and `whoami`, the
 uniform error taxonomy, GET-only retry with jitter, and `--debug`, all
 covered by unit and mock-server (httpmock) tests.
 
-Outstanding: the §3 manual e2e against a **live** control plane (login,
-whoami, a raw authenticated GET) is deferred per §1. No control plane
-is reachable: the stagecraft repo is pre-code (its service specs
-002/004 are approved but `implementation: pending`), and the enrahitu
-chassis that supplies the auth surface is not yet stamped into a
-running plane. This spec stays `implementation: in-progress` until that
-live check can run; everything unit-testable is verified against the
-httpmock server per §1.
+Live e2e (2026-07-15, resolves §3): run against a local plane. The
+chassis mock auth driver mints a session token (`GET
+/api/v1/auth/mock/login`); `login` took it over the bearer handoff and
+validated it against `/api/v1/auth/me`, `whoami` rendered the identity
+(`admin@example.com`) in both formats, and a raw authenticated `GET
+/api/v1/tenants` returned 200. `--debug` was confirmed to leak the
+token zero times. The gateway accepts `Authorization: Bearer` (verified
+in the enrahitu chassis `backend/auth/handler.ts`), so the bearer-replay
+model holds against the real plane. §3 acceptance holds; this spec is
+`implementation: complete`.

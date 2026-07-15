@@ -130,16 +130,24 @@ fn to_pretty<T: Serialize>(value: &T) -> String {
     serde_json::to_string_pretty(value).expect("serializing an owned envelope cannot fail")
 }
 
-/// Interpret a passthrough value as a JSON array (list endpoints), or a decode
-/// error naming what came back instead. Human path only; JSON passthrough never
-/// calls this.
-fn as_array(v: &Value) -> AppResult<&Vec<Value>> {
-    v.as_array().ok_or_else(|| {
-        AppError::Operational(anyhow::anyhow!(
-            "expected a JSON array from the control plane, got {}",
+/// Interpret a passthrough value as a wrapped list: an object whose `key` holds
+/// a JSON array. Every platform collection is wrapped (`{tenants:[…]}` from
+/// stagecraft `ListTenantsResponse`, `{apps:[…]}` from `ListFleetResponse`; spec
+/// 004 §5.3), never a bare array. A decode error names what came back instead.
+/// Human path only; JSON passthrough never calls this.
+fn array_field<'a>(v: &'a Value, key: &str) -> AppResult<&'a Vec<Value>> {
+    match v.get(key) {
+        Some(inner) => inner.as_array().ok_or_else(|| {
+            AppError::Operational(anyhow::anyhow!(
+                "expected `{key}` to be a JSON array from the control plane, got {}",
+                kind_of(inner)
+            ))
+        }),
+        None => Err(AppError::Operational(anyhow::anyhow!(
+            "expected an object carrying `{key}` from the control plane, got {}",
             kind_of(v)
-        ))
-    })
+        ))),
+    }
 }
 
 /// A human name for a JSON value's shape, for decode-error messages.

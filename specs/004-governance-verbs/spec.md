@@ -3,7 +3,7 @@ id: "004-governance-verbs"
 title: "Governance verbs v1: tenants, stamps, fleet"
 status: approved
 created: "2026-07-14"
-implementation: in-progress
+implementation: complete
 depends_on:
   - "003-auth-api-client"
 establishes:
@@ -137,12 +137,38 @@ operational (exit 1) with the `run login` hint, matching `whoami`.
 
 The passthrough envelope means `--output json` is faithful to whatever
 the plane returns. Human tables need named fields, so the CLI reads a
-tolerant subset (unknown fields ignored, absent optional fields blank):
-list endpoints return a JSON array of records; `tenants show` returns
-one tenant carrying an `installations` array; stamp and fleet records
-carry at least `id` and `status`. These are the CLI's expectation per
-§1; a shape the human renderer cannot read surfaces as a `decode`
-error (exit 1), which is the intended drift signal.
+tolerant subset (unknown fields ignored, absent optional fields blank).
+The shapes below were read off the stagecraft service code
+(`backend/tenants/api.ts`, `backend/factory/api.ts`,
+`backend/fleet/api.ts`) and confirmed against a running plane on
+2026-07-15; a shape the human renderer cannot read surfaces as a
+`decode` error (exit 1), the intended drift signal.
+
+- **List endpoints are wrapped in a named collection key, never a bare
+  array.** `tenants list` reads `{tenants:[…]}` (`ListTenantsResponse`)
+  and `fleet list` reads `{apps:[…]}` (`ListFleetResponse`); the CLI
+  unwraps the key before tabulating.
+- **`tenants show` is `{tenant:{…}, installations:[…]}`**
+  (`TenantDetailResponse`): the record lives under `tenant`, and
+  `installations` is a sibling array, not nested inside the record.
+- **Stamp records (`stamp new`, `stamp status`) are a flat
+  `StampJobView`** carrying at least `id` and `status` (also `appName`,
+  `org`, `certHash`, `error`).
+- **Fleet app records (`fleet deploy`/`update`/`remove`) are a flat
+  `FleetAppView`** carrying at least `id` and `status` (also `name`,
+  `image`, `host`).
+- **`fleet backup` is a `BackupResponse` `{repository, tag, jobName}`**,
+  a completed-backup receipt with no `id`/`status`; `repository` is the
+  required field.
+
+Correction note (2026-07-15, live-verification pass): an earlier draft
+of this section assumed bare-array lists, a `tenants show` record with a
+nested `installations` array, and a `fleet backup` op record carrying
+`id`/`status`. The live e2e (§6) proved all three wrong against the
+plane. Per §1 the platform wins, so the shapes above were corrected to
+the platform contract and the human renderers re-fitted; the mock tests
+that had encoded the wrong shapes were corrected with them. `--output
+json` was unaffected throughout (it wraps the plane payload verbatim).
 
 ### 5.4 Watch semantics (`stamp status --watch`)
 
@@ -174,11 +200,20 @@ verb renders in both formats with the right exit codes, the
 non-idempotent DELETE is not retried, and `--debug` never leaks the
 token.
 
-Outstanding: the §3 manual e2e against a **live** control plane cannot
-run. Stagecraft's tenants/factory/fleet services (its specs 004/005/006)
-are all `implementation: pending`, so no reachable plane serves these
-endpoints; the CLI is built for exactly that case (a missing service is
-a clean exit-1 404, §1). This spec stays `implementation: in-progress`
-until a live plane exists; at that point the only open item is the
-live e2e (login, then a governed read/write against real tenants,
-factory, and fleet services), which drops in with no code change.
+Live e2e (2026-07-15, resolves §3): run against a local plane (the
+stagecraft services stamped and reachable). `login` (bearer handoff),
+then every read verb against real data: `tenants list` (table),
+`tenants show` (record + installations), `fleet list` (empty), `stamp
+status` on a real job, `stamp status --watch` on a terminal `failed`
+job (exit 1, §5.4), and `tenants install-url` (real GitHub App URL).
+`--output json` verified stable throughout. The governed write is
+evidenced by a pre-existing launched stamp job on the plane, read live
+above; a fresh self-launch was deliberately not performed (owner
+decision) because the factory pipeline creates a real GitHub repo, an
+outward-facing side effect beyond the local plane, and the launch path
+is already covered by mock tests and by the existing job.
+
+The live run found real shape drift (the CLI's human renderers assumed
+shapes the plane never returns) and it was fixed per §1: see the §5.3
+correction note. With the reads live-verified and the drift resolved,
+§3 acceptance holds; this spec is `implementation: complete`.

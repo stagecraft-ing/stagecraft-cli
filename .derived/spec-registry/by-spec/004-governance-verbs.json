@@ -11,7 +11,7 @@
       }
     ],
     "id": "004-governance-verbs",
-    "implementation": "in-progress",
+    "implementation": "complete",
     "sectionHeadings": [
       "004: Governance verbs",
       "1. Cross-repo dependency",
@@ -30,6 +30,6 @@
     "summary": "The CLI face becomes useful: the stub commands from spec 002 gain real implementations over the API client, mirroring the control plane's tenants (stagecraft spec 004), factory (spec 005), and fleet (spec 006) services. Every verb has a stable JSON output shape, because spec 005 exposes these same verbs as MCP tools and the JSON is the shared contract between both faces.\n",
     "title": "Governance verbs v1: tenants, stamps, fleet"
   },
-  "shardHash": "da3bdd371187d7af89428ee04e060365b9583c4a3f7cfa3b2605d4a2e8cf012c",
+  "shardHash": "c8282f2410f0072e4a10578af7d13cff12921806b154d05fe5144ef07cd12148",
   "specVersion": "1.1.0"
 }
