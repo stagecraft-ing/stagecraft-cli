@@ -7,11 +7,11 @@ implementation: complete
 depends_on:
   - "003-auth-api-client"
 establishes:
-  - { kind: symbol, id: "stagecraft_cli::verbs" }
+  - { kind: symbol, id: "statecraft_cli::verbs" }
 summary: >
   The CLI face becomes useful: the stub commands from spec 002 gain
   real implementations over the API client, mirroring the control
-  plane's tenants (stagecraft spec 004), factory (spec 005), and fleet
+  plane's tenants (statecraft spec 004), factory (spec 005), and fleet
   (spec 006) services. Every verb has a stable JSON output shape,
   because spec 005 exposes these same verbs as MCP tools and the JSON
   is the shared contract between both faces.
@@ -21,7 +21,7 @@ summary: >
 
 ## 1. Cross-repo dependency
 
-Endpoint shapes are defined by the stagecraft repo's specs 004/005/006
+Endpoint shapes are defined by the statecraft repo's specs 004/005/006
 and inlined below as the CLI's expectation; if the live control plane
 diverges, the platform spec wins: update the shapes here via amendment
 rather than coding to drift. Services that do not exist yet on the
@@ -30,26 +30,26 @@ target plane must surface as "not enabled on this control plane"
 
 ## 2. Verb surface (all support --output json)
 
-- `stagecraft tenants list` -> GET /api/v1/tenants
-- `stagecraft tenants show <id>` -> GET /api/v1/tenants/:id (includes
+- `statecraft tenants list` -> GET /api/v1/tenants
+- `statecraft tenants show <id>` -> GET /api/v1/tenants/:id (includes
   installations)
-- `stagecraft tenants install-url <id>` -> GET
+- `statecraft tenants install-url <id>` -> GET
   /api/v1/tenants/:id/github/install-url (prints the URL; `--open`
   opens the browser)
-- `stagecraft stamp new --tenant <id> --app <name> --org <org>
+- `statecraft stamp new --tenant <id> --app <name> --org <org>
   [--frontend vue] --posture <none|assisted|autonomous>` -> POST
   /api/v1/tenants/:id/stamps. Posture is a REQUIRED flag with no
   default: the CLI must not invent a posture (the platform rejects
   defaulted postures by design).
-- `stagecraft stamp status <jobId> [--watch]` -> GET
+- `statecraft stamp status <jobId> [--watch]` -> GET
   /api/v1/stamps/:jobId; --watch polls (2s interval, backoff to 10s)
   until green|failed, exit 0|1 accordingly, streaming state changes as
   they happen.
-- `stagecraft fleet list --tenant <id>`; `stagecraft fleet deploy
-  --tenant <id> --app <fleetApp> --image <ref>`; `stagecraft fleet
-  update <appId> --image <ref>`; `stagecraft fleet backup <appId>`;
-  `stagecraft fleet remove <appId> --confirm <name>` (the confirm-name
-  guard from stagecraft spec 006 is surfaced verbatim; no
+- `statecraft fleet list --tenant <id>`; `statecraft fleet deploy
+  --tenant <id> --app <fleetApp> --image <ref>`; `statecraft fleet
+  update <appId> --image <ref>`; `statecraft fleet backup <appId>`;
+  `statecraft fleet remove <appId> --confirm <name>` (the confirm-name
+  guard from statecraft spec 006 is surfaced verbatim; no
   --force/--yes shortcut exists, deliberately).
 - Human output: aligned tables with the fields a operator scans for
   (ids, names, status, age); JSON output: the platform response passed
@@ -67,7 +67,7 @@ target plane must surface as "not enabled on this control plane"
 ## 4. Out of scope
 
 - Approvals verbs (arrive when the platform's approvals surface
-  exists, follow-up to stagecraft spec 008).
+  exists, follow-up to statecraft spec 008).
 - MCP exposure (005).
 - Any local stamping (stamping is the platform's job; the CLI only
   triggers and watches).
@@ -79,7 +79,7 @@ target plane must surface as "not enabled on this control plane"
 
 §2 named the verbs but left the concrete HTTP mapping, the request
 bodies, and the envelope's error arm implicit. This section inlines
-them, read off stagecraft specs 004 (tenants), 005 (factory), and 006
+them, read off statecraft specs 004 (tenants), 005 (factory), and 006
 (fleet) on 2026-07-15. §1's divergence rule still governs: if a live
 plane differs, the platform spec wins and this section is re-amended,
 never coded around.
@@ -100,17 +100,17 @@ never coded around.
 | `fleet remove <appId>` | DELETE `/fleet/:appId` | `{confirm}` |
 
 Every mapping above is verbatim from the platform specs except one:
-`fleet list` -> GET `/tenants/:id/fleet`. Stagecraft spec 006 defines
+`fleet list` -> GET `/tenants/:id/fleet`. Statecraft spec 006 defines
 the fleet collection's deploy (POST `/tenants/:id/fleet`) and the
 per-app status/update/backup/remove, but names no list endpoint. The
 CLI inlines the symmetric collection GET as its expectation, mirroring
 the factory's `GET /tenants/:id/stamps` list; if the plane lands a
 different list shape, §1 governs. `stamp new`'s `posture` is a required
 field the caller must supply: the factory rejects a defaulted posture
-by design (stagecraft spec 005 §3, pipeline step 3), so the CLI makes
+by design (statecraft spec 005 §3, pipeline step 3), so the CLI makes
 `--posture` a required flag with no default and forwards it as
 `posture`. `fleet remove`'s `confirm` carries the literal app name the
-operator echoes (stagecraft spec 006 §3, destructive guard); there is
+operator echoes (statecraft spec 006 §3, destructive guard); there is
 no `--force`/`--yes` shortcut.
 
 ### 5.2 JSON envelope (`--output json`)
@@ -138,7 +138,7 @@ operational (exit 1) with the `run login` hint, matching `whoami`.
 The passthrough envelope means `--output json` is faithful to whatever
 the plane returns. Human tables need named fields, so the CLI reads a
 tolerant subset (unknown fields ignored, absent optional fields blank).
-The shapes below were read off the stagecraft service code
+The shapes below were read off the statecraft service code
 (`backend/tenants/api.ts`, `backend/factory/api.ts`,
 `backend/fleet/api.ts`) and confirmed against a running plane on
 2026-07-15; a shape the human renderer cannot read surfaces as a
@@ -184,7 +184,7 @@ exhausted.
 
 Implemented: the full §2/§5.1 verb surface (tenants list/show/
 install-url, stamp new/status with `--watch`, fleet list/deploy/update/
-backup/remove) in the new `stagecraft_cli::verbs` module over the spec
+backup/remove) in the new `statecraft_cli::verbs` module over the spec
 003 client, which grew GET/POST/DELETE returning a passthrough
 `serde_json::Value`. Human output is aligned tables; `--output json`
 emits the §5.2 `{ok, data|error}` envelope. The `--posture` guard is
@@ -201,7 +201,7 @@ non-idempotent DELETE is not retried, and `--debug` never leaks the
 token.
 
 Live e2e (2026-07-15, resolves §3): run against a local plane (the
-stagecraft services stamped and reachable). `login` (bearer handoff),
+statecraft services stamped and reachable). `login` (bearer handoff),
 then every read verb against real data: `tenants list` (table),
 `tenants show` (record + installations), `fleet list` (empty), `stamp
 status` on a real job, `stamp status --watch` on a terminal `failed`

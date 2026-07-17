@@ -1,4 +1,4 @@
-//! `stagecraft`: one binary, two faces (spec 001). This crate is the scaffold
+//! `statecraft`: one binary, two faces (spec 001). This crate is the scaffold
 //! (spec 002); auth (003), governance verbs (004), and the MCP server (005)
 //! hang off the command tree established here.
 

@@ -19,7 +19,7 @@ use crate::error::{AppError, AppResult};
 use crate::output::{self, OutputFormat};
 
 /// Sent on every request so control-plane logs can attribute CLI traffic.
-const USER_AGENT: &str = concat!("stagecraft/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("statecraft/", env!("CARGO_PKG_VERSION"));
 /// Total attempts for an idempotent GET: one initial call plus retries.
 const MAX_ATTEMPTS: u32 = 3;
 /// Backoff base; the nth retry waits `RETRY_BASE * n` plus jitter.
@@ -48,7 +48,7 @@ impl std::fmt::Display for ApiError {
         match self {
             ApiError::Network(e) => write!(f, "network error talking to the control plane: {e}"),
             ApiError::Unauthenticated => {
-                write!(f, "not authenticated; run `stagecraft login`")
+                write!(f, "not authenticated; run `statecraft login`")
             }
             ApiError::Api { status, message } => {
                 write!(f, "control plane returned {status}: {message}")
@@ -289,7 +289,7 @@ pub fn run_whoami(resolved: &ResolvedConfig, format: OutputFormat, debug: bool) 
     let base_url = require_base_url(resolved)?;
     let token = crate::auth::load_token(&base_url)?.ok_or_else(|| {
         AppError::Operational(anyhow::anyhow!(
-            "not authenticated for {base_url}; run `stagecraft login`"
+            "not authenticated for {base_url}; run `statecraft login`"
         ))
     })?;
     let client = ApiClient::new(base_url.clone(), Some(token), debug)?;
@@ -321,7 +321,7 @@ pub(crate) fn require_base_url(resolved: &ResolvedConfig) -> AppResult<String> {
         .map(normalize_base_url)
         .ok_or_else(|| {
             AppError::Usage(
-                "no control-plane base URL; pass --base-url or set STAGECRAFT_BASE_URL".to_string(),
+                "no control-plane base URL; pass --base-url or set STATECRAFT_BASE_URL".to_string(),
             )
         })
 }
@@ -467,7 +467,7 @@ mod tests {
     fn unauthenticated_message_hints_login() {
         assert!(ApiError::Unauthenticated
             .to_string()
-            .contains("stagecraft login"));
+            .contains("statecraft login"));
     }
 
     #[test]

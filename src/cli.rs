@@ -1,4 +1,4 @@
-//! The `stagecraft` command tree (spec 002 §2).
+//! The `statecraft` command tree (spec 002 §2).
 //!
 //! Stub verbs are present from day one so `--help` is honest: each carries
 //! about-text naming the spec that implements it, and its handler exits 2.
@@ -9,12 +9,12 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::output::OutputFormat;
 
-/// Stagecraft: governance verbs for humans (CLI) and agents (MCP).
+/// Statecraft: governance verbs for humans (CLI) and agents (MCP).
 #[derive(Debug, Parser)]
 #[command(
-    name = "stagecraft",
+    name = "statecraft",
     version,
-    about = "Stagecraft governance verbs: CLI subcommands for humans, MCP server for agents.",
+    about = "Statecraft governance verbs: CLI subcommands for humans, MCP server for agents.",
     subcommand_required = true,
     arg_required_else_help = true
 )]
@@ -23,7 +23,7 @@ pub struct Cli {
     #[arg(long, global = true, value_enum, value_name = "FORMAT")]
     pub output: Option<OutputFormat>,
 
-    /// Stagecraft control-plane base URL (overrides config / env).
+    /// Statecraft control-plane base URL (overrides config / env).
     #[arg(long, global = true, value_name = "URL")]
     pub base_url: Option<String>,
 
@@ -42,7 +42,7 @@ pub struct Cli {
 /// Top-level verbs. Stubs name their owning spec in about-text.
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Authenticate against a Stagecraft control plane (spec 003).
+    /// Authenticate against a Statecraft control plane (spec 003).
     Login,
     /// Show the currently authenticated identity (spec 003).
     Whoami,

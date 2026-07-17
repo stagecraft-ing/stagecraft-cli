@@ -1,10 +1,10 @@
-# CLAUDE.md: stagecraft-cli
+# CLAUDE.md: statecraft-cli
 
 ## Project Overview
 
-The successor to OPC: one Rust binary named `stagecraft` with two
+The successor to OPC: one Rust binary named `statecraft` with two
 faces, CLI subcommands for humans and an MCP server (stdio) for
-agents, both calling the Stagecraft control plane's API under the same
+agents, both calling the Statecraft control plane's API under the same
 identity, guards, and JSON shapes. Thesis and decided constraints:
 `specs/001-cli-mcp-thesis/spec.md`. The build order is the spec
 backlog: 002 crate scaffold, 003 auth + API client, 004 governance
@@ -37,7 +37,7 @@ spec-spine compile && spec-spine index && spec-spine lint
 # after spec 002 lands:
 cargo fmt --check && cargo clippy --all-targets -- -D warnings
 cargo test
-cargo build --release        # target/release/stagecraft
+cargo build --release        # target/release/statecraft
 ```
 
 ## Key Conventions

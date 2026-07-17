@@ -1,18 +1,18 @@
 ---
 id: "006-template-upgrade-verb"
-title: "stagecraft template upgrade: chassis upgrades as a governed verb"
+title: "statecraft template upgrade: chassis upgrades as a governed verb"
 status: approved
 created: "2026-07-14"
 implementation: in-progress
 depends_on:
   - "002-crate-scaffold"
 establishes:
-  - { kind: symbol, id: "stagecraft_cli::verbs::template" }
+  - { kind: symbol, id: "statecraft_cli::verbs::template" }
 summary: >
   The upgrade half of the 2026-07-14 packaging decision: templates
   stay small because the chassis ships as versioned npm packages
   (enrahitu spec 018), and upgrading a stamped app is a verb, not a
-  migration project. `stagecraft template upgrade`, run in a stamped
+  migration project. `statecraft template upgrade`, run in a stamped
   app checkout, reads template.toml, bumps the chassis package pins,
   applies template-shipped codemods, runs the contract verify verb,
   and commits on a branch. The CLI orchestrates; all structure
@@ -34,7 +34,7 @@ re-import path; do not attempt a tree merge.
 
 ## 2. Behavior
 
-`stagecraft template upgrade [--to <template-version>] [--dry-run]
+`statecraft template upgrade [--to <template-version>] [--dry-run]
 [--no-branch]`, executed in a stamped app repo root:
 
 1. **Preflight**: refuse on a dirty working tree; require
@@ -87,8 +87,8 @@ re-import path; do not attempt a tree merge.
 
 ## 5. Status (2026-07-15)
 
-Implemented: `stagecraft template upgrade` in the new
-`stagecraft_cli::verbs::template` module (the symbol this spec
+Implemented: `statecraft template upgrade` in the new
+`statecraft_cli::verbs::template` module (the symbol this spec
 establishes). It is the one *local* governed verb: unlike the spec 004
 verbs it never calls the control plane. It reads `template.toml`, bumps
 the chassis package pins in `package.json`, refreshes the lockfile,

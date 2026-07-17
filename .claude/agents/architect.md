@@ -26,12 +26,12 @@ memory: project
 
 ## Repo Context
 
-stagecraft-cli is one Rust binary named `stagecraft` with two faces: CLI subcommands for humans and an MCP server (stdio) for agents, both calling the Stagecraft control plane's API under the same identity and JSON shapes. spec-spine is an installed CLI tool that governs the repo: a typed, hash-verifiable authority ledger over the spec corpus. It is a dependency, not source code you edit.
+statecraft-cli is one Rust binary named `statecraft` with two faces: CLI subcommands for humans and an MCP server (stdio) for agents, both calling the Statecraft control plane's API under the same identity and JSON shapes. spec-spine is an installed CLI tool that governs the repo: a typed, hash-verifiable authority ledger over the spec corpus. It is a dependency, not source code you edit.
 
 | Surface | Path | Notes |
 |---------|------|-------|
 | Spec corpus | `specs/NNN-slug/spec.md` | Markdown + YAML frontmatter, the authoritative design record; specs 002-005 are the ordered build backlog (crate scaffold, auth + API client, governance verbs, MCP server) |
-| Code | `Cargo.toml`, `src/` (clap command tree; planned by spec 002, pre-code today) | The single `stagecraft` binary the specs govern |
+| Code | `Cargo.toml`, `src/` (clap command tree; planned by spec 002, pre-code today) | The single `statecraft` binary the specs govern |
 | Standard | `standards/spec/{constitution.md,contract.md,templates/}` | Durable principles, normative contract, spec template |
 | Derived | `.derived/` | Committed compiler output (registry, index), read only through the binary |
 
@@ -56,7 +56,7 @@ Read the request or task document. Identify which surfaces are affected.
 For each proposed change, check:
 
 - Does a spec already exist? If not, should one be authored first?
-- Does the approach align with the spec's stated design and constraints? `specs/001-cli-mcp-thesis/spec.md` holds the decided constraints (binary name `stagecraft`, Rust, stdio MCP, Apache-2.0, rustls only, no TUI).
+- Does the approach align with the spec's stated design and constraints? `specs/001-cli-mcp-thesis/spec.md` holds the decided constraints (binary name `statecraft`, Rust, stdio MCP, Apache-2.0, rustls only, no TUI).
 - Are the spec's `depends_on` specs implemented, per the backlog protocol? If a cross-repo dependency or operator prerequisite is missing, the plan must stop and report exactly what is needed, never mock around it.
 - Are there relationship edges (`establishes`, `extends`, `refines`, `supersedes`, `amends`, `depends_on`) the change must respect or extend?
 - Will the change require recompiling the registry or refreshing the codebase index?

@@ -23,7 +23,7 @@
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
-          "id": "stagecraft_cli::verbs::template",
+          "id": "statecraft_cli::verbs::template",
           "kind": "symbol"
         }
       }

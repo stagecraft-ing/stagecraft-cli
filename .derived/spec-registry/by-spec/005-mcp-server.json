@@ -6,7 +6,7 @@
     ],
     "establishes": [
       {
-        "id": "stagecraft_cli::mcp",
+        "id": "statecraft_cli::mcp",
         "kind": "symbol"
       }
     ],
@@ -22,8 +22,8 @@
     ],
     "specPath": "specs/005-mcp-server/spec.md",
     "status": "approved",
-    "summary": "Milestone M4's core: `stagecraft mcp` runs a Model Context Protocol server over stdio exposing the governance verbs as tools, so a coding agent (Claude Code first) operates under Stagecraft governance natively: listing tenants, launching and watching stamps, inspecting and operating fleets, all with the same auth, the same guards, and the same JSON shapes as the CLI face. The MCP face is not a privileged side door: it calls the identical verb layer from spec 004, and destructive guards (explicit posture, confirm-name) pass through to the agent verbatim.\n",
-    "title": "The MCP face: stagecraft mcp (stdio server)"
+    "summary": "Milestone M4's core: `statecraft mcp` runs a Model Context Protocol server over stdio exposing the governance verbs as tools, so a coding agent (Claude Code first) operates under Statecraft governance natively: listing tenants, launching and watching stamps, inspecting and operating fleets, all with the same auth, the same guards, and the same JSON shapes as the CLI face. The MCP face is not a privileged side door: it calls the identical verb layer from spec 004, and destructive guards (explicit posture, confirm-name) pass through to the agent verbatim.\n",
+    "title": "The MCP face: statecraft mcp (stdio server)"
   },
   "shardHash": "3b2d09c65623c532afd2e5329891a969ea1f4efe279772974e0bf832a6220252",
   "specVersion": "1.1.0"

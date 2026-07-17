@@ -7,10 +7,10 @@ implementation: complete
 depends_on:
   - "002-crate-scaffold"
 establishes:
-  - { kind: symbol, id: "stagecraft_cli::api" }
-  - { kind: symbol, id: "stagecraft_cli::auth" }
+  - { kind: symbol, id: "statecraft_cli::api" }
+  - { kind: symbol, id: "statecraft_cli::auth" }
 summary: >
-  The binary learns to authenticate against a Stagecraft control plane
+  The binary learns to authenticate against a Statecraft control plane
   and speak its API. Auth v1 is a browser-assisted session-cookie
   handoff (the control plane's chassis auth is cookie based, and the
   embedded rauthy exposes OIDC; the exact mechanism is
@@ -25,7 +25,7 @@ summary: >
 
 ## 1. Cross-repo dependency
 
-A reachable control plane (stagecraft repo, specs 002+004) is needed
+A reachable control plane (statecraft repo, specs 002+004) is needed
 for live verification. Everything unit-testable must be tested against
 a local mock HTTP server (httpmock or wiremock crate); do not gate
 `cargo test` on a live platform. If no control plane is reachable for
@@ -39,7 +39,7 @@ check as pending.
 - **Auth mechanism constraints** (implementer picks the simplest that
   the control plane's auth surface supports, and records the choice
   here via amendment):
-  1. `stagecraft login [--base-url URL]` must work on a headless
+  1. `statecraft login [--base-url URL]` must work on a headless
      machine with a browser elsewhere: print a URL + one-time code, or
      open a localhost callback when a browser is local. The rauthy
      OIDC authorization-code flow with a loopback redirect
@@ -47,11 +47,11 @@ check as pending.
      personal access token pasted at a prompt is an acceptable v1
      fallback if the loopback flow needs control-plane changes that
      do not exist yet (report which).
-  2. Credentials at `~/.config/stagecraft/credentials.toml`, mode
+  2. Credentials at `~/.config/statecraft/credentials.toml`, mode
      0600, keyed by base_url (multiple planes allowed). Refresh
      transparently when the mechanism supports it; on 401, error with
-     "run stagecraft login".
-- `stagecraft whoami`: GET the control plane's auth identity endpoint
+     "run statecraft login".
+- `statecraft whoami`: GET the control plane's auth identity endpoint
   (`/api/v1/auth/me` in the chassis) and render id/email; exit 1 when
   unauthenticated.
 - **api module**: base_url + credentials -> a client with: typed
@@ -65,7 +65,7 @@ check as pending.
 ### Auth mechanism decision (2026-07-14 amendment)
 
 Chosen v1 mechanism: **browser-assisted bearer-token handoff (paste)**,
-the fallback sanctioned by constraint 1 above. `stagecraft login
+the fallback sanctioned by constraint 1 above. `statecraft login
 [--base-url URL]` guides the operator to sign in through a browser at
 the control plane, then reads the resulting chassis session token
 (`access_token`) from stdin (a piped value or an interactive prompt, so
@@ -98,7 +98,7 @@ control plane adds the loopback client plus a token-return endpoint,
 contract or the api module.
 
 Refresh: the paste mechanism hands the CLI no refresh token, so v1 has
-no transparent refresh; on HTTP 401 the CLI errors with "run stagecraft
+no transparent refresh; on HTTP 401 the CLI errors with "run statecraft
 login". Longer-lived or refreshable CLI tokens are control-plane work
 to add alongside the loopback flow. (The chassis `access_token` is a
 15-minute JWT, a control-plane limitation reported here, not a CLI

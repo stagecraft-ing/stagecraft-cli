@@ -1,11 +1,11 @@
 //! Authentication and the on-disk credentials store (spec 003 §2).
 //!
-//! `stagecraft login` performs the browser-assisted bearer-token handoff
+//! `statecraft login` performs the browser-assisted bearer-token handoff
 //! chosen in the spec's 2026-07-14 amendment: the operator signs in through a
 //! browser at the control plane, pastes the resulting session token (piped or
 //! at a prompt, so a headless machine with a browser elsewhere works), the CLI
 //! validates it against `/auth/me`, and stores it. Tokens live in
-//! `~/.config/stagecraft/credentials.toml` at mode 0600, keyed by base URL,
+//! `~/.config/statecraft/credentials.toml` at mode 0600, keyed by base URL,
 //! never in the config file. The stored token is replayed as a bearer token by
 //! the api module; the acquisition path can later become the RFC 8252 loopback
 //! flow with no change to this store.
@@ -37,10 +37,10 @@ pub struct PlaneCredential {
     pub token: String,
 }
 
-/// The credentials file path: `~/.config/stagecraft/credentials.toml` on Linux,
+/// The credentials file path: `~/.config/statecraft/credentials.toml` on Linux,
 /// alongside `config.toml` but holding only secrets. `None` without a home dir.
 pub fn default_credentials_path() -> Option<PathBuf> {
-    directories::ProjectDirs::from("", "", "stagecraft")
+    directories::ProjectDirs::from("", "", "statecraft")
         .map(|dirs| dirs.config_dir().join("credentials.toml"))
 }
 
@@ -228,7 +228,7 @@ mod tests {
     /// A unique scratch path per test so parallel runs never collide.
     fn scratch(tag: &str) -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("stagecraft-cred-{}-{}", std::process::id(), tag));
+            std::env::temp_dir().join(format!("statecraft-cred-{}-{}", std::process::id(), tag));
         std::fs::create_dir_all(&dir).unwrap();
         dir.join("credentials.toml")
     }
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn missing_file_loads_as_empty() {
         let path = std::env::temp_dir()
-            .join(format!("stagecraft-cred-{}-absent", std::process::id()))
+            .join(format!("statecraft-cred-{}-absent", std::process::id()))
             .join("credentials.toml");
         let loaded = load_from(&path).unwrap();
         assert!(loaded.planes.is_empty());

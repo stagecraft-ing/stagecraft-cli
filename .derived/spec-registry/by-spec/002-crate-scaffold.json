@@ -33,8 +33,8 @@
     ],
     "specPath": "specs/002-crate-scaffold/spec.md",
     "status": "approved",
-    "summary": "The Rust crate for the single binary named stagecraft: clap-based command tree, layered configuration (flags > env > config file), structured output discipline (human tables on TTY, JSON with --output json), and a CI workflow (fmt, clippy -D warnings, test, release build). No network calls yet; spec 003 adds auth and the API client. After this spec, `cargo install --path .` yields a binary whose skeleton every later verb hangs off.\n",
-    "title": "The stagecraft binary: crate scaffold, config, CI"
+    "summary": "The Rust crate for the single binary named statecraft: clap-based command tree, layered configuration (flags > env > config file), structured output discipline (human tables on TTY, JSON with --output json), and a CI workflow (fmt, clippy -D warnings, test, release build). No network calls yet; spec 003 adds auth and the API client. After this spec, `cargo install --path .` yields a binary whose skeleton every later verb hangs off.\n",
+    "title": "The statecraft binary: crate scaffold, config, CI"
   },
   "shardHash": "8576aef9f1f550842270168da67a5fc80a2c886fdbecac54781f3963a854f3d2",
   "specVersion": "1.1.0"

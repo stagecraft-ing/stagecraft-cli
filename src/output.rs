@@ -7,7 +7,7 @@
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-/// The rendering format, selected by `--output` / `STAGECRAFT_OUTPUT` / config.
+/// The rendering format, selected by `--output` / `STATECRAFT_OUTPUT` / config.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {

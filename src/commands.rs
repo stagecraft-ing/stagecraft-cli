@@ -171,10 +171,10 @@ struct VersionInfo {
 
 fn version(format: OutputFormat) {
     let info = VersionInfo {
-        name: "stagecraft",
+        name: "statecraft",
         version: env!("CARGO_PKG_VERSION"),
     };
-    output::emit(format, &info, || format!("stagecraft {}", info.version));
+    output::emit(format, &info, || format!("statecraft {}", info.version));
 }
 
 /// Config-file location and existence, for `config show`.

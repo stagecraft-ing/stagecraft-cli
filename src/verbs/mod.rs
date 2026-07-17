@@ -55,7 +55,7 @@ fn client_for(resolved: &ResolvedConfig, debug: bool) -> AppResult<ApiClient> {
     let base_url = api::require_base_url(resolved)?;
     let token = crate::auth::load_token(&base_url)?.ok_or_else(|| {
         AppError::Operational(anyhow::anyhow!(
-            "not authenticated for {base_url}; run `stagecraft login`"
+            "not authenticated for {base_url}; run `statecraft login`"
         ))
     })?;
     Ok(ApiClient::new(base_url, Some(token), debug)?)
@@ -132,7 +132,7 @@ fn to_pretty<T: Serialize>(value: &T) -> String {
 
 /// Interpret a passthrough value as a wrapped list: an object whose `key` holds
 /// a JSON array. Every platform collection is wrapped (`{tenants:[…]}` from
-/// stagecraft `ListTenantsResponse`, `{apps:[…]}` from `ListFleetResponse`; spec
+/// statecraft `ListTenantsResponse`, `{apps:[…]}` from `ListFleetResponse`; spec
 /// 004 §5.3), never a bare array. A decode error names what came back instead.
 /// Human path only; JSON passthrough never calls this.
 fn array_field<'a>(v: &'a Value, key: &str) -> AppResult<&'a Vec<Value>> {

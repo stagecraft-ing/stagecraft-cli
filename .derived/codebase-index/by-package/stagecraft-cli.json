@@ -2,7 +2,7 @@
   "package": {
     "edition": "2021",
     "kind": "rust-bin",
-    "name": "stagecraft-cli",
+    "name": "statecraft-cli",
     "path": "",
     "specRef": "002-crate-scaffold",
     "version": "0.1.0"
