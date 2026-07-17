@@ -70,7 +70,7 @@ pub fn install_url(
 }
 
 fn render_list(v: &Value) -> AppResult<String> {
-    // GET /tenants is `{tenants:[…]}` (stagecraft `ListTenantsResponse`), not a
+    // GET /tenants is `{tenants:[…]}` (statecraft `ListTenantsResponse`), not a
     // bare array; unwrap the collection key (spec 004 §5.3).
     let tenants = array_field(v, "tenants")?;
     if tenants.is_empty() {
@@ -84,7 +84,7 @@ fn render_list(v: &Value) -> AppResult<String> {
 }
 
 fn render_detail(v: &Value) -> AppResult<String> {
-    // GET /tenants/:id is `{tenant:{…}, installations:[…]}` (stagecraft
+    // GET /tenants/:id is `{tenant:{…}, installations:[…]}` (statecraft
     // `TenantDetailResponse`): the record lives under `tenant`, and
     // `installations` is a sibling array, not nested in it (spec 004 §5.3).
     let tenant = v.get("tenant").ok_or_else(|| {
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn detail_shows_installations() {
         // `{tenant:{…}, installations:[…]}`: record under `tenant`, installations
-        // a sibling (stagecraft `TenantDetailResponse`, spec 004 §5.3).
+        // a sibling (statecraft `TenantDetailResponse`, spec 004 §5.3).
         let value = json!({
             "tenant": {
                 "id": "t_1",

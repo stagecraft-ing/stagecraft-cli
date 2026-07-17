@@ -1,4 +1,4 @@
-# AGENTS.md: stagecraft-cli
+# AGENTS.md: statecraft-cli
 
 This file is the cross-agent session-init protocol authority, read by
 Claude Code, Codex CLI, Cursor, and GitHub Copilot via the AAIF/Linux

@@ -23,7 +23,7 @@
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
-          "id": "stagecraft_cli::mcp",
+          "id": "statecraft_cli::mcp",
           "kind": "symbol"
         }
       }

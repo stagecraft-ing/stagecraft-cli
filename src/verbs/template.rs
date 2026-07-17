@@ -1307,7 +1307,7 @@ mod tests {
         static COUNTER: AtomicU32 = AtomicU32::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let dir =
-            std::env::temp_dir().join(format!("stagecraft-tmpl-{}-{}", std::process::id(), n));
+            std::env::temp_dir().join(format!("statecraft-tmpl-{}-{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

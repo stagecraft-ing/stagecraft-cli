@@ -21,7 +21,7 @@ pub enum AppError {
     /// it; it is retained because the spec mandates the taxonomy and a later
     /// spec scaffolds its command as a stub before implementing it.
     #[allow(dead_code)]
-    #[error("`stagecraft {command}` is not implemented until spec {spec}")]
+    #[error("`statecraft {command}` is not implemented until spec {spec}")]
     NotImplemented { command: String, spec: &'static str },
 
     /// Invalid usage we detect ourselves (as opposed to clap's own parse errors).

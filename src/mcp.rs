@@ -1,5 +1,5 @@
-//! The MCP face (spec 005): `stagecraft mcp` runs a Model Context Protocol
-//! server over stdio so a coding agent operates under Stagecraft governance
+//! The MCP face (spec 005): `statecraft mcp` runs a Model Context Protocol
+//! server over stdio so a coding agent operates under Statecraft governance
 //! natively.
 //!
 //! Transport is hand-rolled JSON-RPC 2.0 over newline-delimited stdio (spec 005
@@ -15,7 +15,7 @@
 //! `stamp_new` requires an explicit `posture`, `fleet_remove` a `confirm_name`.
 //! Neither `login` nor `install-url --open` is exposed, so an agent can never
 //! trigger a browser flow; an unauthenticated server answers every tool call
-//! with a structured error naming `stagecraft login`.
+//! with a structured error naming `statecraft login`.
 
 use std::io::{self, BufRead, Write};
 
@@ -28,7 +28,7 @@ use crate::error::{AppError, AppResult};
 use crate::verbs::{envelope_value, error_envelope, fleet, stamp, tenants};
 
 /// Server identity reported in `initialize` and used as the `.mcp.json` key.
-const SERVER_NAME: &str = "stagecraft";
+const SERVER_NAME: &str = "statecraft";
 /// The MCP protocol version we answer with when a client offers none.
 const PROTOCOL_VERSION: &str = "2025-06-18";
 
@@ -53,13 +53,13 @@ struct ServerContext {
     runtime: tokio::runtime::Runtime,
 }
 
-/// `stagecraft mcp`: run the stdio server until stdin closes (or a `shutdown`).
+/// `statecraft mcp`: run the stdio server until stdin closes (or a `shutdown`).
 ///
 /// The credential is loaded once, at startup, from the spec 003 store; a client
 /// that logs in afterward reconnects (Claude Code restarts the server on config
 /// change), which keeps the request loop free of filesystem access and testable.
 /// A missing or unreadable store is not fatal: the server starts unauthenticated
-/// and instructs `stagecraft login` per call (spec 005 §1 "if unauthenticated it
+/// and instructs `statecraft login` per call (spec 005 §1 "if unauthenticated it
 /// starts").
 pub fn run(resolved: &ResolvedConfig, debug: bool) -> AppResult<()> {
     let base_url = resolved.base_url.value.as_deref().map(normalize_base_url);
@@ -93,10 +93,10 @@ pub fn run(resolved: &ResolvedConfig, debug: bool) -> AppResult<()> {
     serve(stdin.lock(), stdout.lock(), &ctx)
 }
 
-/// `stagecraft mcp --print-config`: print the `.mcp.json` snippet that installs
+/// `statecraft mcp --print-config`: print the `.mcp.json` snippet that installs
 /// this binary as a Claude Code MCP server. The command path is this executable
 /// so the snippet works before the binary is on `PATH`; when a base URL is
-/// resolved it is pinned as `STAGECRAFT_BASE_URL` so the snippet is turnkey.
+/// resolved it is pinned as `STATECRAFT_BASE_URL` so the snippet is turnkey.
 pub fn print_config(resolved: &ResolvedConfig) -> AppResult<()> {
     let command = std::env::current_exe()
         .ok()
@@ -115,7 +115,7 @@ pub fn print_config(resolved: &ResolvedConfig) -> AppResult<()> {
 fn config_snippet(base_url: Option<&str>, command: &str) -> Value {
     let mut server = json!({ "command": command, "args": ["mcp"] });
     if let Some(base) = base_url {
-        server["env"] = json!({ "STAGECRAFT_BASE_URL": base });
+        server["env"] = json!({ "STATECRAFT_BASE_URL": base });
     }
     json!({ "mcpServers": { SERVER_NAME: server } })
 }
@@ -530,7 +530,7 @@ where
 
 /// Build an authenticated client, or the structured error envelope that the tool
 /// result carries when the server cannot make a call: `config` when no base URL
-/// was set, `unauthenticated` (naming `stagecraft login`) when no credential is
+/// was set, `unauthenticated` (naming `statecraft login`) when no credential is
 /// stored. An agent can never resolve the latter itself: `login` is not a tool.
 fn client_or_envelope(ctx: &ServerContext) -> Result<ApiClient, Value> {
     let base_url = match &ctx.base_url {
@@ -538,7 +538,7 @@ fn client_or_envelope(ctx: &ServerContext) -> Result<ApiClient, Value> {
         None => {
             return Err(error_envelope(
                 "config",
-                "no control-plane base URL; launch `stagecraft mcp` with STAGECRAFT_BASE_URL set (or --base-url)".to_string(),
+                "no control-plane base URL; launch `statecraft mcp` with STATECRAFT_BASE_URL set (or --base-url)".to_string(),
                 None,
             ))
         }
@@ -665,7 +665,7 @@ mod tests {
         );
         assert_eq!(out.len(), 1);
         assert_eq!(out[0]["id"], 1);
-        assert_eq!(out[0]["result"]["serverInfo"]["name"], "stagecraft");
+        assert_eq!(out[0]["result"]["serverInfo"]["name"], "statecraft");
         assert_eq!(out[0]["result"]["protocolVersion"], "2025-03-26");
         assert!(out[0]["result"]["capabilities"]["tools"].is_object());
     }
@@ -788,7 +788,7 @@ mod tests {
                 assert!(envelope["error"]["message"]
                     .as_str()
                     .unwrap()
-                    .contains("stagecraft login"));
+                    .contains("statecraft login"));
             }
             Dispatch::Invalid(_) => {
                 panic!("an unauthenticated call is a tool result, not invalid params")
@@ -1058,14 +1058,14 @@ mod tests {
 
     #[test]
     fn print_config_snippet_carries_mcp_args_and_optional_env() {
-        let with = config_snippet(Some("http://localhost:4000"), "/usr/local/bin/stagecraft");
-        let entry = &with["mcpServers"]["stagecraft"];
-        assert_eq!(entry["command"], "/usr/local/bin/stagecraft");
+        let with = config_snippet(Some("http://localhost:4000"), "/usr/local/bin/statecraft");
+        let entry = &with["mcpServers"]["statecraft"];
+        assert_eq!(entry["command"], "/usr/local/bin/statecraft");
         assert_eq!(entry["args"][0], "mcp");
-        assert_eq!(entry["env"]["STAGECRAFT_BASE_URL"], "http://localhost:4000");
+        assert_eq!(entry["env"]["STATECRAFT_BASE_URL"], "http://localhost:4000");
 
         // No base URL resolved: no env block to hardcode.
-        let without = config_snippet(None, "stagecraft");
-        assert!(without["mcpServers"]["stagecraft"].get("env").is_none());
+        let without = config_snippet(None, "statecraft");
+        assert!(without["mcpServers"]["statecraft"].get("env").is_none());
     }
 }

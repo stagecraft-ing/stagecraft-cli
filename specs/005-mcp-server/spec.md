@@ -1,17 +1,17 @@
 ---
 id: "005-mcp-server"
-title: "The MCP face: stagecraft mcp (stdio server)"
+title: "The MCP face: statecraft mcp (stdio server)"
 status: approved
 created: "2026-07-14"
 implementation: complete
 depends_on:
   - "004-governance-verbs"
 establishes:
-  - { kind: symbol, id: "stagecraft_cli::mcp" }
+  - { kind: symbol, id: "statecraft_cli::mcp" }
 summary: >
-  Milestone M4's core: `stagecraft mcp` runs a Model Context Protocol
+  Milestone M4's core: `statecraft mcp` runs a Model Context Protocol
   server over stdio exposing the governance verbs as tools, so a coding
-  agent (Claude Code first) operates under Stagecraft governance
+  agent (Claude Code first) operates under Statecraft governance
   natively: listing tenants, launching and watching stamps, inspecting
   and operating fleets, all with the same auth, the same guards, and
   the same JSON shapes as the CLI face. The MCP face is not a
@@ -46,11 +46,11 @@ summary: >
     human; this guard is the product surface, keep it loud.
 - Auth: the server reuses the credentials file (spec 003); if
   unauthenticated it starts, but every tool call returns a structured
-  error instructing `stagecraft login` (an agent must never be able to
+  error instructing `statecraft login` (an agent must never be able to
   trigger the login browser flow itself).
 - Every tool result includes the platform's attestation/record ids
   when present, so agent transcripts can cite the governed record.
-- `stagecraft mcp --print-config` prints the .mcp.json snippet for
+- `statecraft mcp --print-config` prints the .mcp.json snippet for
   easy installation.
 
 ### Transport decision (2026-07-15 amendment)
@@ -92,11 +92,11 @@ new decision recorded by amendment.
 
 ## 4. Status (2026-07-15)
 
-Implemented: `stagecraft mcp` runs the stdio JSON-RPC server (the
-transport decision above) in the new `stagecraft_cli::mcp` module,
+Implemented: `statecraft mcp` runs the stdio JSON-RPC server (the
+transport decision above) in the new `statecraft_cli::mcp` module,
 exposing all nine §1 tools. Each tool calls the identical spec 004 verb
 request (the endpoint and body knowledge lives once, in
-`stagecraft_cli::verbs`; the MCP face only chooses which to call), and
+`statecraft_cli::verbs`; the MCP face only chooses which to call), and
 the tool result is the spec 004 §5.2 `{ok,data|error}` envelope
 verbatim, so any attestation/record ids in the plane's payload are
 carried through. The guards pass through: `stamp_new` rejects a
@@ -105,9 +105,9 @@ missing or empty `posture` and `fleet_remove` a missing or empty
 nor `install-url --open` is exposed, so an agent can never trigger the
 browser flow. An unauthenticated server still starts and answers every
 tool call with a structured `{ok:false,error:{kind:"unauthenticated"}}`
-result naming `stagecraft login`; a corrupt or unreadable credentials
+result naming `statecraft login`; a corrupt or unreadable credentials
 store degrades to the same unauthenticated start rather than refusing to
-boot. `stagecraft mcp --print-config` prints the `.mcp.json` snippet.
+boot. `statecraft mcp --print-config` prints the `.mcp.json` snippet.
 
 The tool-result `error.kind` set a client can see is the spec 004 §5.2
 taxonomy passed through (`network`, `api`, `server`, `decode`) plus two
@@ -128,8 +128,8 @@ notification handling, and the print-config snippet.
 
 Live check (2026-07-15, resolves §2): run against a local plane. A
 scripted stdio client (the identical newline-delimited JSON-RPC a
-`claude mcp add` client speaks) drove the real `stagecraft mcp` server
-against the plane: `initialize` (serverInfo `stagecraft`) ->
+`claude mcp add` client speaks) drove the real `statecraft mcp` server
+against the plane: `initialize` (serverInfo `statecraft`) ->
 `notifications/initialized` -> `tools/list` (9 tools) -> `tools/call
 tenants_list` (returned the real tenant "E2E stamp check" in the
 `{ok:true,data:{tenants:[…]}}` passthrough envelope) -> `tools/call

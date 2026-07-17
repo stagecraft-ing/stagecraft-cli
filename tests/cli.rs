@@ -1,30 +1,30 @@
-//! End-to-end checks that drive the built `stagecraft` binary (spec 002 §3).
+//! End-to-end checks that drive the built `statecraft` binary (spec 002 §3).
 //!
-//! Cargo sets `CARGO_BIN_EXE_stagecraft`, so no extra test crates are needed.
+//! Cargo sets `CARGO_BIN_EXE_statecraft`, so no extra test crates are needed.
 
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
 
 fn run(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+    Command::new(env!("CARGO_BIN_EXE_statecraft"))
         .args(args)
         // Neutralize ambient config so tests are deterministic.
-        .env_remove("STAGECRAFT_BASE_URL")
-        .env_remove("STAGECRAFT_OUTPUT")
+        .env_remove("STATECRAFT_BASE_URL")
+        .env_remove("STATECRAFT_OUTPUT")
         .output()
-        .expect("failed to run stagecraft binary")
+        .expect("failed to run statecraft binary")
 }
 
 /// Run the binary with its working directory set to `dir`: the `template`
 /// verb operates on the stamped app in the current directory (spec 006).
 fn run_in(dir: &std::path::Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+    Command::new(env!("CARGO_BIN_EXE_statecraft"))
         .args(args)
         .current_dir(dir)
-        .env_remove("STAGECRAFT_BASE_URL")
-        .env_remove("STAGECRAFT_OUTPUT")
+        .env_remove("STATECRAFT_BASE_URL")
+        .env_remove("STATECRAFT_OUTPUT")
         .output()
-        .expect("failed to run stagecraft binary")
+        .expect("failed to run statecraft binary")
 }
 
 /// Create a unique temp dir seeded with a `template.toml` and `package.json`,
@@ -34,7 +34,7 @@ fn stamped_fixture(template_toml: &str, package_json: &str) -> std::path::PathBu
     static COUNTER: AtomicU32 = AtomicU32::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     let dir =
-        std::env::temp_dir().join(format!("stagecraft-cli-tmpl-{}-{}", std::process::id(), n));
+        std::env::temp_dir().join(format!("statecraft-cli-tmpl-{}-{}", std::process::id(), n));
     std::fs::create_dir_all(&dir).expect("create fixture dir");
     std::fs::write(dir.join("template.toml"), template_toml).expect("write template.toml");
     std::fs::write(dir.join("package.json"), package_json).expect("write package.json");
@@ -44,15 +44,15 @@ fn stamped_fixture(template_toml: &str, package_json: &str) -> std::path::PathBu
 /// Drive the binary with `input` piped to stdin, then close it. The `mcp` stdio
 /// server reads newline-delimited requests and shuts down on the resulting EOF.
 fn run_with_stdin(args: &[&str], input: &str) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_statecraft"))
         .args(args)
-        .env_remove("STAGECRAFT_BASE_URL")
-        .env_remove("STAGECRAFT_OUTPUT")
+        .env_remove("STATECRAFT_BASE_URL")
+        .env_remove("STATECRAFT_OUTPUT")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("failed to spawn stagecraft binary");
+        .expect("failed to spawn statecraft binary");
     child
         .stdin
         .take()
@@ -63,7 +63,7 @@ fn run_with_stdin(args: &[&str], input: &str) -> Output {
     // shutdown, so the wait below returns rather than blocking.
     child
         .wait_with_output()
-        .expect("failed to wait on stagecraft binary")
+        .expect("failed to wait on statecraft binary")
 }
 
 #[test]
@@ -74,9 +74,9 @@ fn mcp_print_config_emits_an_installable_snippet() {
     assert_eq!(out.status.code(), Some(0), "print-config should exit 0");
     let value: serde_json::Value =
         serde_json::from_slice(&out.stdout).expect("print-config emits valid JSON");
-    assert_eq!(value["mcpServers"]["stagecraft"]["args"][0], "mcp");
+    assert_eq!(value["mcpServers"]["statecraft"]["args"][0], "mcp");
     assert!(
-        value["mcpServers"]["stagecraft"]["command"].is_string(),
+        value["mcpServers"]["statecraft"]["command"].is_string(),
         "the snippet names a launch command, got: {value}"
     );
 }
@@ -92,7 +92,7 @@ fn mcp_server_answers_initialize_over_stdio() {
     let value: serde_json::Value =
         serde_json::from_str(line.trim()).expect("one JSON-RPC response line on stdout");
     assert_eq!(value["id"], 1);
-    assert_eq!(value["result"]["serverInfo"]["name"], "stagecraft");
+    assert_eq!(value["result"]["serverInfo"]["name"], "statecraft");
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn governance_verb_without_a_credential_exits_1_with_login_hint() {
     assert_eq!(out.status.code(), Some(1), "no credential is exit 1");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("stagecraft login"),
+        stderr.contains("statecraft login"),
         "stderr should hint at login, got: {stderr}"
     );
     assert!(out.stdout.is_empty(), "errors must not print to stdout");
@@ -184,7 +184,7 @@ fn whoami_without_a_stored_credential_exits_1_with_login_hint() {
     assert_eq!(out.status.code(), Some(1), "unauthenticated is exit 1");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("stagecraft login"),
+        stderr.contains("statecraft login"),
         "stderr should hint at login, got: {stderr}"
     );
     assert!(out.stdout.is_empty(), "errors must not print to stdout");
@@ -216,7 +216,7 @@ fn version_json_shape_is_stable() {
     let out = run(&["--output", "json", "version"]);
     assert_eq!(out.status.code(), Some(0));
     let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
-    assert_eq!(value["name"], "stagecraft");
+    assert_eq!(value["name"], "statecraft");
     assert!(value["version"].is_string());
 }
 
@@ -248,12 +248,12 @@ fn config_show_reports_flag_as_the_base_url_source() {
 
 #[test]
 fn invalid_env_output_value_is_a_usage_error() {
-    let out = Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+    let out = Command::new(env!("CARGO_BIN_EXE_statecraft"))
         .args(["version"])
-        .env_remove("STAGECRAFT_BASE_URL")
-        .env("STAGECRAFT_OUTPUT", "yaml")
+        .env_remove("STATECRAFT_BASE_URL")
+        .env("STATECRAFT_OUTPUT", "yaml")
         .output()
-        .expect("failed to run stagecraft binary");
+        .expect("failed to run statecraft binary");
     assert_eq!(out.status.code(), Some(2));
     assert!(
         out.stdout.is_empty(),
@@ -263,12 +263,12 @@ fn invalid_env_output_value_is_a_usage_error() {
 
 #[test]
 fn config_show_reports_env_as_the_base_url_source() {
-    let out = Command::new(env!("CARGO_BIN_EXE_stagecraft"))
+    let out = Command::new(env!("CARGO_BIN_EXE_statecraft"))
         .args(["--output", "json", "config", "show"])
-        .env_remove("STAGECRAFT_OUTPUT")
-        .env("STAGECRAFT_BASE_URL", "https://env.example")
+        .env_remove("STATECRAFT_OUTPUT")
+        .env("STATECRAFT_BASE_URL", "https://env.example")
         .output()
-        .expect("failed to run stagecraft binary");
+        .expect("failed to run statecraft binary");
     assert_eq!(out.status.code(), Some(0));
     let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
     assert_eq!(value["base_url"]["value"], "https://env.example");
@@ -284,7 +284,7 @@ const TOOLCHAIN_TOML: &str =
 fn template_upgrade_not_stamped_is_a_refusal() {
     // An empty directory: no template.toml, so it is not a stamped app. The
     // JSON error envelope lands on stdout (spec 004 §5.2), exit 1.
-    let dir = std::env::temp_dir().join(format!("stagecraft-cli-empty-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("statecraft-cli-empty-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let out = run_in(
         &dir,

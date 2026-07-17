@@ -27,7 +27,7 @@ mutation: read-write
 
 ## Repo Context
 
-stagecraft-cli is one Rust binary named `stagecraft` (CLI subcommands + MCP server over stdio). spec-spine is an installed CLI tool that governs the spec corpus. It is a dependency, not source code you edit.
+statecraft-cli is one Rust binary named `statecraft` (CLI subcommands + MCP server over stdio). spec-spine is an installed CLI tool that governs the spec corpus. It is a dependency, not source code you edit.
 
 | Surface | Path | Build / verify |
 |---------|------|----------------|

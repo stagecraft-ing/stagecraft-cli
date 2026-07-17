@@ -13,7 +13,7 @@ use crate::error::{AppError, AppResult};
 use crate::output::OutputFormat;
 
 /// Environment-variable prefix for config overrides.
-pub const ENV_PREFIX: &str = "STAGECRAFT_";
+pub const ENV_PREFIX: &str = "STATECRAFT_";
 
 /// Where a resolved value came from, highest precedence last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -52,7 +52,7 @@ pub struct FileConfig {
     pub output: Option<OutputFormat>,
 }
 
-/// Config drawn from the environment (`STAGECRAFT_*`). Every field optional.
+/// Config drawn from the environment (`STATECRAFT_*`). Every field optional.
 #[derive(Clone, Debug, Default)]
 pub struct EnvConfig {
     pub base_url: Option<String>,
@@ -149,10 +149,10 @@ fn pick_opt(
     }
 }
 
-/// The default config file path (`~/.config/stagecraft/config.toml` on Linux),
+/// The default config file path (`~/.config/statecraft/config.toml` on Linux),
 /// derived via the `directories` crate. `None` if no home directory is known.
 pub fn default_config_path() -> Option<PathBuf> {
-    directories::ProjectDirs::from("", "", "stagecraft")
+    directories::ProjectDirs::from("", "", "statecraft")
         .map(|dirs| dirs.config_dir().join("config.toml"))
 }
 
@@ -167,9 +167,9 @@ pub fn load_file(path: &Path) -> Result<FileConfig> {
     }
 }
 
-/// Read config overrides from the process environment (`STAGECRAFT_*`).
+/// Read config overrides from the process environment (`STATECRAFT_*`).
 ///
-/// Empty values are treated as unset. An unrecognized `STAGECRAFT_OUTPUT`
+/// Empty values are treated as unset. An unrecognized `STATECRAFT_OUTPUT`
 /// is misuse (exit 2), surfaced as [`AppError::Usage`].
 pub fn load_env() -> AppResult<EnvConfig> {
     let base_url = non_empty_var(&format!("{ENV_PREFIX}BASE_URL"));

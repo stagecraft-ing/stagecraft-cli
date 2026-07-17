@@ -23,7 +23,7 @@
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
-          "id": "stagecraft_cli::api",
+          "id": "statecraft_cli::api",
           "kind": "symbol"
         }
       },
@@ -40,7 +40,7 @@
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
-          "id": "stagecraft_cli::auth",
+          "id": "statecraft_cli::auth",
           "kind": "symbol"
         }
       }

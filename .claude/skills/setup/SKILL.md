@@ -15,7 +15,7 @@ ad-hoc parsing of `.derived/**/*.json` (see
 
 ### 1. Verify the Rust toolchain
 
-This repo builds one Rust binary (`stagecraft`, spec 002). Check the
+This repo builds one Rust binary (`statecraft`, spec 002). Check the
 toolchain the gates need:
 
 ```bash
@@ -68,7 +68,7 @@ re-check. Do not parse `.derived/**/*.json` directly to "verify" success.
 Report exactly:
 
 ```
-## setup: stagecraft-cli
+## setup: statecraft-cli
 
 **Toolchain:** {cargo <version> / missing}
 **Install:** {ok / failed at <step>}

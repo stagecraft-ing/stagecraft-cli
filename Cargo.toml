@@ -1,19 +1,19 @@
 [package]
-name = "stagecraft-cli"
+name = "statecraft-cli"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Stagecraft governance verbs as CLI subcommands for humans and an MCP server for agents."
-repository = "https://github.com/stagecraft-ing/stagecraft-cli"
+description = "Statecraft governance verbs as CLI subcommands for humans and an MCP server for agents."
+repository = "https://github.com/statecrafting/statecraft-cli"
 readme = "README.md"
 
 # spec-spine couples this crate's code paths to its owning spec.
 [package.metadata.spec-spine]
 spec = "002-crate-scaffold"
 
-# One binary named `stagecraft` (spec 001: the OPC name retires).
+# One binary named `statecraft` (spec 001: the OPC name retires).
 [[bin]]
-name = "stagecraft"
+name = "statecraft"
 path = "src/main.rs"
 
 [dependencies]

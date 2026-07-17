@@ -6,11 +6,11 @@
     ],
     "establishes": [
       {
-        "id": "stagecraft_cli::api",
+        "id": "statecraft_cli::api",
         "kind": "symbol"
       },
       {
-        "id": "stagecraft_cli::auth",
+        "id": "statecraft_cli::auth",
         "kind": "symbol"
       }
     ],
@@ -27,7 +27,7 @@
     ],
     "specPath": "specs/003-auth-api-client/spec.md",
     "status": "approved",
-    "summary": "The binary learns to authenticate against a Stagecraft control plane and speak its API. Auth v1 is a browser-assisted session-cookie handoff (the control plane's chassis auth is cookie based, and the embedded rauthy exposes OIDC; the exact mechanism is DECIDE-AT-IMPLEMENTATION between OAuth device-flow-style polling and a localhost callback, constrained below). Tokens/cookies are stored in a 0600 credentials file, never in the config file. An api module gives every later verb a typed, authenticated request path with consistent error mapping.\n",
+    "summary": "The binary learns to authenticate against a Statecraft control plane and speak its API. Auth v1 is a browser-assisted session-cookie handoff (the control plane's chassis auth is cookie based, and the embedded rauthy exposes OIDC; the exact mechanism is DECIDE-AT-IMPLEMENTATION between OAuth device-flow-style polling and a localhost callback, constrained below). Tokens/cookies are stored in a 0600 credentials file, never in the config file. An api module gives every later verb a typed, authenticated request path with consistent error mapping.\n",
     "title": "Auth + control-plane API client"
   },
   "shardHash": "46b6c05e0ca45e03fc21761df69431c89464e6a11e5e9088c4f76bf97e65cd59",

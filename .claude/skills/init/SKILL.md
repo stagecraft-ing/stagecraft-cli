@@ -15,7 +15,7 @@ Claude Code, Codex CLI, Cursor, Copilot, and any future agent).
    `## ` heading exclusive. That section is the step list.
 2. Execute the protocol described there, using parallel tool calls wherever
    steps are independent.
-3. Emit a structured `## initialized: stagecraft-cli` summary: the lifecycle
+3. Emit a structured `## initialized: statecraft-cli` summary: the lifecycle
    counts reported by `spec-spine registry status-report --json
    --nonzero-only` and the next pending spec in the 002-005 build backlog.
 
