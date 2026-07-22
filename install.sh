@@ -65,7 +65,12 @@ triple="${cpu}-${plat}"
 tag="${STATECRAFT_VERSION:-latest}"
 if [ "$tag" = "latest" ]; then
   say "resolving latest release…"
-  tag="$(dl_stdout "https://api.github.com/repos/${REPO}/releases/latest" \
+  # Buffer the API response before parsing: streaming into `grep -m1` closes
+  # the pipe as soon as the tag line is found, and curl then prints a spurious
+  # "(56) Failure writing output" line on the happy path.
+  latest_json="$(dl_stdout "https://api.github.com/repos/${REPO}/releases/latest")" \
+    || die "could not query the latest release (set STATECRAFT_VERSION)"
+  tag="$(printf '%s\n' "$latest_json" \
         | grep -m1 '"tag_name"' \
         | sed -E 's/.*"tag_name"[ ]*:[ ]*"([^"]+)".*/\1/')"
   [ -n "$tag" ] || die "could not resolve the latest release tag (set STATECRAFT_VERSION)"
