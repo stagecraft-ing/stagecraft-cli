@@ -1,0 +1,36 @@
+{
+  "record": {
+    "created": "2026-07-22",
+    "dependsOn": [
+      "002-crate-scaffold"
+    ],
+    "establishes": [
+      {
+        "kind": "file",
+        "path": ".github/workflows/release.yml"
+      },
+      {
+        "kind": "file",
+        "path": "install.sh"
+      }
+    ],
+    "id": "007-release-distribution",
+    "implementation": "in-progress",
+    "sectionHeadings": [
+      "007: Release distribution",
+      "1. Purpose",
+      "2. Territory",
+      "3. Behavior: the pipeline",
+      "4. Behavior: install.sh",
+      "5. Release procedure",
+      "6. Acceptance",
+      "7. Out of scope"
+    ],
+    "specPath": "specs/007-release-distribution/spec.md",
+    "status": "approved",
+    "summary": "Closes the gap between \"builds from source\" and \"installable product\": pushing a v<semver> tag builds a per-triple archive for the five supported targets, attaches checksums, a CycloneDX SBOM, and a SLSA build-provenance attestation to a GitHub Release, and install.sh (curl | sh) consumes the archives. Mirrors the spec-spine release pipeline (the family precedent this repo's own CI already consumes) plus the fail-fast version guard OPC's release workflow learned the hard way. No registry publishing: the crate is a binary product, not a library.\n",
+    "title": "Release distribution: tag-gated prebuilt binaries and installer"
+  },
+  "shardHash": "905bd5059b673e380bf011d965d61dbc18be5ec2821715c5aa110e76b6cbdda1",
+  "specVersion": "1.1.0"
+}

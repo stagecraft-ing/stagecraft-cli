@@ -25,6 +25,6 @@
     "summary": "Milestone M4's core: `statecraft mcp` runs a Model Context Protocol server over stdio exposing the governance verbs as tools, so a coding agent (Claude Code first) operates under Statecraft governance natively: listing tenants, launching and watching stamps, inspecting and operating fleets, all with the same auth, the same guards, and the same JSON shapes as the CLI face. The MCP face is not a privileged side door: it calls the identical verb layer from spec 004, and destructive guards (explicit posture, confirm-name) pass through to the agent verbatim.\n",
     "title": "The MCP face: statecraft mcp (stdio server)"
   },
-  "shardHash": "3b2d09c65623c532afd2e5329891a969ea1f4efe279772974e0bf832a6220252",
+  "shardHash": "9f949920b71fe9c60819a798101e42314e01354db95f5b3fcc98478976f13a4f",
   "specVersion": "1.1.0"
 }
