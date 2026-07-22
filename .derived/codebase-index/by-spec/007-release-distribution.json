@@ -5,7 +5,11 @@
     ],
     "implementingPaths": [
       {
-        "path": "src/main.rs",
+        "path": ".github/workflows/release.yml",
+        "source": "spec-edge"
+      },
+      {
+        "path": "install.sh",
         "source": "spec-edge"
       }
     ],
@@ -13,41 +17,33 @@
       {
         "locations": [
           {
-            "file": "src/main.rs",
-            "span": {
-              "endLine": 5,
-              "startLine": 5
-            }
+            "file": ".github/workflows/release.yml"
           }
         ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
-          "id": "statecraft_cli::api",
-          "kind": "symbol"
+          "kind": "file",
+          "path": ".github/workflows/release.yml"
         }
       },
       {
         "locations": [
           {
-            "file": "src/main.rs",
-            "span": {
-              "endLine": 6,
-              "startLine": 6
-            }
+            "file": "install.sh"
           }
         ],
         "ownership": true,
         "sourceField": "establishes",
         "unit": {
-          "id": "statecraft_cli::auth",
-          "kind": "symbol"
+          "kind": "file",
+          "path": "install.sh"
         }
       }
     ],
-    "specId": "003-auth-api-client",
+    "specId": "007-release-distribution",
     "specStatus": "approved"
   },
   "schemaVersion": "1.1.0",
-  "shardHash": "aa4f92f23e82eeb882a12fbb6a165d505584d8e9ce454db397d3526a9dabd473"
+  "shardHash": "775d293277f36d26bd48854630315b34d9525eca17f5a4504b42528fc7d0deae"
 }

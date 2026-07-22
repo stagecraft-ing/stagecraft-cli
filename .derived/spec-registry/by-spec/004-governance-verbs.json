@@ -30,6 +30,6 @@
     "summary": "The CLI face becomes useful: the stub commands from spec 002 gain real implementations over the API client, mirroring the control plane's tenants (statecraft spec 004), factory (spec 005), and fleet (spec 006) services. Every verb has a stable JSON output shape, because spec 005 exposes these same verbs as MCP tools and the JSON is the shared contract between both faces.\n",
     "title": "Governance verbs v1: tenants, stamps, fleet"
   },
-  "shardHash": "c8282f2410f0072e4a10578af7d13cff12921806b154d05fe5144ef07cd12148",
+  "shardHash": "d4bbc4533f622959b2495d1d337e09754e840a698e52c3e26df3bba6d7a84a4b",
   "specVersion": "1.1.0"
 }
