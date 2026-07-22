@@ -3,7 +3,7 @@ id: "007-release-distribution"
 title: "Release distribution: tag-gated prebuilt binaries and installer"
 status: approved
 created: "2026-07-22"
-implementation: in-progress
+implementation: complete
 depends_on:
   - "002-crate-scaffold"
 establishes:
@@ -126,3 +126,32 @@ names above.
   authenticity story).
 - Self-update (re-run install.sh or use the Releases page; no
   in-binary updater, matching the no-bypass posture of the verbs).
+
+## 8. Status (2026-07-22)
+
+Implemented and live-verified; `implementation: complete`.
+
+The first release, v0.1.0 (signed tag on merge commit 4f0cc73,
+workflow run 29964581207), went green on the first run: the version
+guard passed, all five matrix legs built, and the publish job attached
+all fifteen assets (five archives, five `.sha256` sidecars, five
+CycloneDX SBOMs) to a published release with generated notes.
+
+Live check (§6 acceptance), Apple Silicon dev machine, hard mode:
+`curl -fsSL .../install.sh | sh` with
+`STATECRAFT_REQUIRE_ATTESTATION=1` resolved the latest tag to v0.1.0,
+verified the checksum, verified the provenance attestation, installed
+the aarch64-apple-darwin binary, and the installed `statecraft
+--version` printed `statecraft 0.1.0` (`version --output json`:
+`{"name":"statecraft","version":"0.1.0"}`).
+
+One wart found by the live check and fixed with this status edit: the
+installer's latest-tag resolution streamed the GitHub API response
+into `grep -m1`, which closes the pipe as soon as the tag line is
+found and makes curl print a spurious "(56) Failure writing output"
+line on the happy path; the response is now buffered before parsing.
+
+Known cosmetic follow-up, deliberately deferred: the pinned
+actions/checkout (v4.3.1, shared with ci.yml) emits a Node 20
+deprecation notice on current runners. Bump both workflows together
+when refreshing action pins; not worth a lone-file drift now.
