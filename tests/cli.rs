@@ -316,7 +316,7 @@ fn template_upgrade_pre_018_app_is_refused() {
 fn template_upgrade_dry_run_plans_without_mutating() {
     // Dry run reaches no git/npm: it reads, plans, and reports. It must change
     // nothing on disk and exit 0 with the machine result.
-    let package = "{\n  \"name\": \"app\",\n  \"devDependencies\": {\n    \"@enrahitu/toolchain\": \"0.1.0\"\n  }\n}\n";
+    let package = "{\n  \"name\": \"app\",\n  \"devDependencies\": {\n    \"@statecrafting/toolchain\": \"0.1.0\"\n  }\n}\n";
     let dir = stamped_fixture(TOOLCHAIN_TOML, package);
     let out = run_in(
         &dir,
