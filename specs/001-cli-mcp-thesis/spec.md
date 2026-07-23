@@ -3,7 +3,7 @@ id: "001-cli-mcp-thesis"
 title: "statecraft-cli: one binary, two faces (CLI verbs + MCP server)"
 status: approved
 created: "2026-07-14"
-implementation: pending
+implementation: complete
 depends_on:
   - "000-bootstrap"
 establishes:
@@ -42,9 +42,15 @@ the MCP face is not a privileged side door.
 
 ## 2. Decided constraints
 
-- **Binary name `statecraft`**; npm distribution as `statecraft-cli` (the
-  bare npm name is taken; brew/cargo naming is uncontested). The OPC name
-  retires with the desktop app.
+- **Binary name `statecraft`.** The OPC name retires with the desktop
+  app; brew/cargo naming is uncontested. Distribution was originally
+  assumed to be npm (published as `statecraft-cli`, the bare npm name
+  being taken), and the repo keeps that name. Spec 007 superseded the
+  npm assumption: `statecraft` is a single-binary product, not a
+  library, so it ships as tag-gated prebuilt binaries plus an
+  `install.sh` (curl | sh), with no registry publishing. 007 is the
+  decided distribution channel; the npm line here was a 2026-07-14
+  assumption that did not survive the build.
 - **Implementation language: Rust** (single static binary, no runtime
   dependency on the customer machine; the MCP server speaks stdio).
 - **License Apache-2.0.** The CLI is the funnel and the agent bridge;
@@ -66,3 +72,15 @@ point, informed by the OPC governance-verb inventory
 - Control-plane behavior (statecraft repo).
 - Template mechanics (enrahitu repo).
 - A desktop or graphical client of any kind.
+
+## 5. Status (2026-07-23)
+
+Complete. The thesis and its decided constraints are realized by the
+build backlog: the crate scaffold (002), auth + API client (003), the
+governance verbs (004), the stdio MCP face (005), and the template
+upgrade verb (006), with distribution settled by 007. Every §2
+constraint holds: binary name `statecraft`, Rust single binary, stdio
+MCP, Apache-2.0, no TUI. The one §2 assumption that did not survive was
+npm distribution, superseded by 007's tag-gated binaries + `install.sh`
+(no registry publishing); §2 is amended to record that. The territory
+this spec establishes (`README.md`) exists and is consistent with 007.

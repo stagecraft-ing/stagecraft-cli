@@ -11,19 +11,20 @@
       }
     ],
     "id": "001-cli-mcp-thesis",
-    "implementation": "pending",
+    "implementation": "complete",
     "sectionHeadings": [
       "001: statecraft-cli thesis",
       "1. Purpose",
       "2. Decided constraints",
       "3. Territory",
-      "4. Out of scope"
+      "4. Out of scope",
+      "5. Status (2026-07-23)"
     ],
     "specPath": "specs/001-cli-mcp-thesis/spec.md",
     "status": "approved",
     "summary": "The successor to OPC (the retired Tauri desktop cockpit): a single binary named statecraft that exposes the platform's governance verbs twice, as CLI subcommands for humans and as an MCP server for agents. The MCP face is the product's genuinely unique surface: any agent (Claude Code first) operates natively under Statecraft governance, requesting approvals, checking spec-code coupling, and triggering factory stages. This is milestone M4 in the Statecraft ladder; the spec records the thesis and the decided constraints so the repo is born governed ahead of its build.\n",
     "title": "statecraft-cli: one binary, two faces (CLI verbs + MCP server)"
   },
-  "shardHash": "44bcacd7382fc9a9245569ebebc1e3037e4b64b9ae7e3acbe82b69b8f2fe452a",
+  "shardHash": "2ea06cdbf60d1603ba01e2f2669c549aee3829917a3727d842de654d4b3deaf2",
   "specVersion": "1.1.0"
 }
