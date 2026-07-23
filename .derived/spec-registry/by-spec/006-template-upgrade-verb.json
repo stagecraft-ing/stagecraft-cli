@@ -11,20 +11,20 @@
       }
     ],
     "id": "006-template-upgrade-verb",
-    "implementation": "in-progress",
+    "implementation": "complete",
     "sectionHeadings": [
       "006: template upgrade verb",
       "1. Cross-repo dependencies (read first)",
       "2. Behavior",
       "3. Acceptance",
       "4. Out of scope",
-      "5. Status (2026-07-15)"
+      "5. Status (2026-07-23)"
     ],
     "specPath": "specs/006-template-upgrade-verb/spec.md",
     "status": "approved",
     "summary": "The upgrade half of the 2026-07-14 packaging decision: templates stay small because the chassis ships as versioned npm packages (enrahitu spec 018), and upgrading a stamped app is a verb, not a migration project. `statecraft template upgrade`, run in a stamped app checkout, reads template.toml, bumps the chassis package pins, applies template-shipped codemods, runs the contract verify verb, and commits on a branch. The CLI orchestrates; all structure knowledge stays in the template and its packages. This verb is the boundary that keeps the CLI from ever becoming a build daemon.\n",
     "title": "statecraft template upgrade: chassis upgrades as a governed verb"
   },
-  "shardHash": "7ad323fce9c96006b9804b90069aa11eb436cdd447d7120cf09b524f0fb4375c",
+  "shardHash": "cf99472525340adb40708bf097fc02471e4aebcbf82d1cd05f21fbdcd8df9a88",
   "specVersion": "1.1.0"
 }

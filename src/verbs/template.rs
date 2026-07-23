@@ -9,16 +9,22 @@
 //! in the template and its packages (spec 006 summary). This is the boundary
 //! that keeps the CLI from ever becoming a build daemon.
 //!
-//! Design notes (recorded in spec 006 §4 for the coherence guard):
-//! - The template version and the chassis package version move in lockstep, so
-//!   the resolved target is applied as the exact pin for each chassis package.
-//! - The compat gate is the contract's own `[requires]` range: a target outside
-//!   it is the "major upgrade requires the migration path" refusal, so the
-//!   version policy lives in the template, not the CLI.
+//! Design notes (recorded in spec 006 §2 / §5 for the coherence guard):
+//! - Per-package resolution: the chassis packages are versioned independently,
+//!   not in lockstep, so each discovered package resolves its own target. A seed
+//!   (a package the contract names in `[requires]`) resolves the greatest
+//!   published version its named range allows; a companion (in the chassis scope
+//!   but unnamed) resolves within a caret of its current pin, so it never crosses
+//!   its own major silently. `--to` overrides the primary seed's target only, so
+//!   it can never force a companion onto a version it never published.
+//! - The compat gate is the contract's own `[requires]` range: a forced `--to`
+//!   outside the primary seed's range is the "major upgrade requires the
+//!   migration path" refusal, so the version policy lives in the template, not
+//!   the CLI.
 //! - Chassis packages are discovered from `[requires]` by unscoped name (so
-//!   `node` is naturally skipped and `toolchain` resolves to `@enrahitu/…`),
+//!   `node` is naturally skipped and `toolchain` resolves to `@statecrafting/…`),
 //!   then every exact-pinned dependency in the discovered scope is bumped
-//!   (catching companions like `@enrahitu/hiqlite-native`) with no hardcoded
+//!   (catching companions like `@statecrafting/hiqlite-native`) with no hardcoded
 //!   scope in the CLI.
 //! - Every git/npm/node side effect sits behind [`Runner`] so `cargo test` runs
 //!   fully offline (the spec 003 §1 discipline: never gate tests on the outside
@@ -104,69 +110,31 @@ fn run(
         ));
     }
 
-    // Resolve the target: an explicit `--to`, or the greatest published version
-    // the primary chassis package's range allows (a registry read, behind Runner).
-    let target = match to {
-        Some(raw) => Version::parse(raw.trim_start_matches('v')).map_err(|e| {
-            Refusal::BadTarget(format!("`--to {raw}` is not a semver version: {e}"))
-        })?,
-        None => {
-            let range = manifest
-                .requires
-                .get(&chassis.range_key)
-                .cloned()
-                .unwrap_or_default();
-            let req = VersionReq::parse(&range).map_err(|e| {
-                Refusal::Io(format!(
-                    "contract `[requires].{}` is not a semver range: {e}",
-                    chassis.range_key
-                ))
-            })?;
-            runner
-                .latest_version(dir, &chassis.pins[chassis.primary].name, &req)
-                .map_err(|e| {
-                    Refusal::Io(format!(
-                        "could not resolve the latest compatible version: {e}"
-                    ))
-                })?
-        }
-    };
+    // Per-package resolution (spec 006 §2): each discovered chassis package
+    // resolves its own target independently, since the packages no longer move
+    // in lockstep. A `--to` overrides the primary seed only; everything else
+    // auto-resolves against its own range, so `--to` can never force a companion
+    // onto a version it never published. The compat gate rides inside this call.
+    let resolved = resolve_targets(runner, dir, &chassis, to)?;
 
-    // The compat gate is the contract's own ranges: the target must satisfy
-    // EVERY chassis requirement, not just the primary's, so a contract that
-    // names more than one range can never be crossed silently. Crossing any of
-    // them is a migration, not an upgrade, so this verb points at that path.
-    for key in &chassis.range_keys {
-        let range = manifest.requires.get(key).cloned().unwrap_or_default();
-        let req = VersionReq::parse(&range).map_err(|e| {
-            Refusal::Io(format!(
-                "contract `[requires].{key}` is not a semver range: {e}"
-            ))
-        })?;
-        if !req.matches(&target) {
-            return Err(Refusal::IncompatibleTarget(format!(
-                "target {target} is outside the contract's compatible range `{range}` for `{key}`; a major upgrade requires the migration path, not this verb"
-            )));
-        }
-    }
-
-    let from = chassis.pins[chassis.primary].current.clone();
-    let target_str = target.to_string();
-    let pin_reports: Vec<PinReport> = chassis
-        .pins
+    // The headline (primary seed) versions drive the report's top-level
+    // `from`/`to` and the branch name; each pin carries its own `to` below.
+    let from = resolved[chassis.primary].pin.current.clone();
+    let target_str = resolved[chassis.primary].target.clone();
+    let pin_reports: Vec<PinReport> = resolved
         .iter()
-        .map(|p| PinReport {
-            name: p.name.clone(),
-            from: p.current.clone(),
-            to: target_str.clone(),
-            section: p.section.to_string(),
+        .map(|r| PinReport {
+            name: r.pin.name.clone(),
+            from: r.pin.current.clone(),
+            to: r.target.clone(),
+            section: r.pin.section.to_string(),
         })
         .collect();
 
     // Already there: an idempotent no-op only when EVERY chassis pin already
-    // equals the target, so a companion a partial bump left behind is still
-    // caught rather than hidden by the primary already matching.
-    if chassis.pins.iter().all(|p| p.current == target_str) {
+    // equals its own resolved target, so a companion a partial bump left behind
+    // is still caught rather than hidden by the primary already matching.
+    if resolved.iter().all(|r| r.pin.current == r.target) {
         return Ok(UpgradeReport {
             from,
             to: target_str,
@@ -180,8 +148,7 @@ fn run(
         });
     }
 
-    let updated_package =
-        apply_pins(&package_text, &chassis.pins, &target_str).map_err(Refusal::Io)?;
+    let updated_package = apply_pins(&package_text, &resolved).map_err(Refusal::Io)?;
 
     // Dry run: report the plan, mutate nothing, run nothing.
     if dry_run {
@@ -315,36 +282,36 @@ fn parse_manifest(text: &str) -> Result<TemplateManifest, Refusal> {
 // --- chassis discovery ------------------------------------------------------
 
 /// One chassis dependency the upgrade will re-pin: its full package name, which
-/// `package.json` section it lives in, and its current exact pin.
+/// `package.json` section it lives in, its current exact pin, and (for a seed)
+/// the `[requires]` range that governs it. A companion discovered only by shared
+/// scope has no named range, so `range` is `None` and it resolves within a caret
+/// of its current pin instead.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ChassisPin {
     name: String,
     section: &'static str,
     current: String,
+    range: Option<String>,
 }
 
-/// The discovered chassis: the pins to bump, the index of the primary seed
-/// (whose range the `--to`-omitted registry lookup and the `from` report use),
-/// and every distinct `[requires]` key a seed matched. The target must satisfy
-/// all of `range_keys`, so a contract naming more than one range can never be
-/// crossed silently.
+/// The discovered chassis: the pins to bump and the index of the primary seed
+/// (the chassis package the contract's range drives, whose headline versions the
+/// report and branch name use, and the only pin a `--to` overrides).
 #[derive(Debug)]
 struct Chassis {
     pins: Vec<ChassisPin>,
     primary: usize,
-    range_key: String,
-    range_keys: Vec<String>,
 }
 
 const SECTIONS: [&str; 2] = ["dependencies", "devDependencies"];
 
-/// The unscoped tail of a package name: `@enrahitu/toolchain` -> `toolchain`.
+/// The unscoped tail of a package name: `@statecrafting/toolchain` -> `toolchain`.
 fn unscoped(name: &str) -> &str {
     name.rsplit('/').next().unwrap_or(name)
 }
 
-/// The scope of a package name, including the leading `@`: `@enrahitu/toolchain`
-/// -> `Some("@enrahitu")`; an unscoped name has no scope.
+/// The scope of a package name, including the leading `@`: `@statecrafting/toolchain`
+/// -> `Some("@statecrafting")`; an unscoped name has no scope.
 fn scope_of(name: &str) -> Option<&str> {
     name.strip_prefix('@')
         .map(|_| name.split('/').next().unwrap_or(name))
@@ -399,7 +366,8 @@ fn discover_chassis(
         .filter_map(|n| scope_of(n).map(str::to_string))
         .collect();
 
-    // Candidates: every seed, plus every dependency sharing a chassis scope.
+    // Candidates: every seed, plus every dependency sharing a chassis scope. A
+    // seed carries its `[requires]` range; a companion carries `None`.
     let pins: Vec<ChassisPin> = deps
         .iter()
         .filter(|(name, spec, _)| {
@@ -410,6 +378,9 @@ fn discover_chassis(
             name: name.clone(),
             section,
             current: spec.trim().to_string(),
+            range: seed_keys
+                .get(name)
+                .and_then(|key| requires.get(key).cloned()),
         })
         .collect();
 
@@ -419,43 +390,109 @@ fn discover_chassis(
         ));
     }
 
-    // The primary seed is the one whose range drives the `--to`-omitted registry
-    // lookup and the `from` report: prefer a seed that is itself an exact pin,
-    // else fall back to the first exact pin discovered.
-    let primary = pins
-        .iter()
-        .position(|p| seed_keys.contains_key(&p.name))
-        .unwrap_or(0);
-    let range_key = seed_keys
-        .get(&pins[primary].name)
-        .cloned()
-        .or_else(|| seed_keys.values().next().cloned())
-        .unwrap_or_default();
-    // Every distinct requirement key a seed matched: the target is gated against
-    // all of them, not just the primary's (so multiple ranges cannot be crossed
-    // silently). `seed_keys` is a BTreeMap, so this is sorted and deduplicated.
-    let mut range_keys: Vec<String> = seed_keys.values().cloned().collect();
-    range_keys.dedup();
+    // The primary seed is the chassis package the contract's range drives (the
+    // headline `from`/`to` and the only pin `--to` overrides): prefer a seed
+    // (one carrying a named range), else fall back to the first exact pin.
+    let primary = pins.iter().position(|p| p.range.is_some()).unwrap_or(0);
 
-    Ok(Chassis {
-        pins,
-        primary,
-        range_key,
-        range_keys,
-    })
+    Ok(Chassis { pins, primary })
+}
+
+// --- per-package target resolution ------------------------------------------
+
+/// One chassis pin with its own independently-resolved target version.
+#[derive(Debug)]
+struct ResolvedPin {
+    pin: ChassisPin,
+    target: String,
+}
+
+/// Resolve each discovered chassis pin to its own target (spec 006 §2). A seed
+/// resolves the greatest published version its `[requires]` range allows; a
+/// companion resolves the greatest published version within a caret of its
+/// current pin, so an unnamed companion never crosses its own major. `--to`
+/// overrides the primary seed's target only, gated against that seed's range;
+/// every other pin auto-resolves, so `--to` can never pin a companion to a
+/// version it never published. A bad `--to` is a refusal before any registry
+/// read.
+fn resolve_targets(
+    runner: &dyn Runner,
+    dir: &Path,
+    chassis: &Chassis,
+    to: Option<&str>,
+) -> Result<Vec<ResolvedPin>, Refusal> {
+    let forced = match to {
+        Some(raw) => Some(Version::parse(raw.trim_start_matches('v')).map_err(|e| {
+            Refusal::BadTarget(format!("`--to {raw}` is not a semver version: {e}"))
+        })?),
+        None => None,
+    };
+
+    let mut resolved = Vec::with_capacity(chassis.pins.len());
+    for (idx, pin) in chassis.pins.iter().enumerate() {
+        // The governing range: a seed's own `[requires]` range, else a caret of
+        // the companion's current pin (which is a valid exact version, so this
+        // always parses).
+        let range = pin
+            .range
+            .clone()
+            .unwrap_or_else(|| format!("^{}", pin.current));
+        let req = VersionReq::parse(&range).map_err(|e| {
+            Refusal::Io(format!(
+                "range `{range}` for `{}` is not a semver range: {e}",
+                pin.name
+            ))
+        })?;
+
+        let target = match &forced {
+            // A forced `--to` targets the primary seed and is gated against its
+            // range: outside it, this is a migration, not an upgrade.
+            Some(v) if idx == chassis.primary => {
+                if !req.matches(v) {
+                    return Err(Refusal::IncompatibleTarget(format!(
+                        "target {v} is outside the contract's compatible range `{range}` for `{}`; a major upgrade requires the migration path, not this verb",
+                        pin.name
+                    )));
+                }
+                v.clone()
+            }
+            // Every other pin (and every pin when `--to` is omitted) resolves the
+            // greatest published version its own range allows.
+            _ => runner.latest_version(dir, &pin.name, &req).map_err(|e| {
+                Refusal::Io(format!(
+                    "could not resolve the latest compatible version of {}: {e}",
+                    pin.name
+                ))
+            })?,
+        };
+
+        resolved.push(ResolvedPin {
+            pin: pin.clone(),
+            target: target.to_string(),
+        });
+    }
+
+    Ok(resolved)
 }
 
 // --- format-preserving pin rewrite ------------------------------------------
 
-/// Re-pin every chassis dependency to `target` in the original `package.json`
-/// text. String-level so key order, indentation, and trailing bytes survive
-/// untouched: the git diff is exactly the version bumps.
-fn apply_pins(text: &str, pins: &[ChassisPin], target: &str) -> Result<String, String> {
+/// Re-pin every chassis dependency to its own resolved target in the original
+/// `package.json` text. String-level so key order, indentation, and trailing
+/// bytes survive untouched: the git diff is exactly the version bumps.
+fn apply_pins(text: &str, resolved: &[ResolvedPin]) -> Result<String, String> {
     let mut out = text.to_string();
-    for pin in pins {
-        out = set_pin(&out, pin.section, &pin.name, target)?;
+    for r in resolved {
+        out = set_pin(&out, r.pin.section, &r.pin.name, &r.target)?;
     }
     Ok(out)
+}
+
+/// The greatest of `versions` that satisfies `req`, or `None` when none do.
+/// Shared by the real runner (after `npm view`) and the test runner, so both
+/// select a target the same way.
+fn select_latest(versions: &[Version], req: &VersionReq) -> Option<Version> {
+    versions.iter().filter(|v| req.matches(v)).max().cloned()
 }
 
 /// Replace the version string of `"name"` inside the object introduced by the
@@ -766,13 +803,21 @@ impl Runner for ProcessRunner {
                 String::from_utf8_lossy(&out.stderr).trim()
             );
         }
-        let versions: Vec<String> = serde_json::from_slice(&out.stdout)
+        // `npm view <pkg> versions --json` returns a JSON array, but for a
+        // package with exactly one published version some npm builds return a
+        // bare JSON string. Accept both so single-version companions resolve.
+        let raw: Value = serde_json::from_slice(&out.stdout)
             .map_err(|e| anyhow::anyhow!("npm returned versions we could not parse: {e}"))?;
-        versions
-            .iter()
-            .filter_map(|v| Version::parse(v).ok())
-            .filter(|v| req.matches(v))
-            .max()
+        let versions: Vec<Version> = match raw {
+            Value::Array(items) => items
+                .iter()
+                .filter_map(|v| v.as_str())
+                .filter_map(|v| Version::parse(v).ok())
+                .collect(),
+            Value::String(v) => Version::parse(&v).into_iter().collect(),
+            _ => Vec::new(),
+        };
+        select_latest(&versions, req)
             .ok_or_else(|| anyhow::anyhow!("no published version of {pkg} satisfies `{req}`"))
     }
 
@@ -863,12 +908,27 @@ mod tests {
     }
 
     /// A runner that records what it was asked to do and never touches the disk.
+    /// `published` maps a package name to its published versions, so per-package
+    /// resolution runs through the same [`select_latest`] the real runner uses.
     #[derive(Default)]
     struct FakeRunner {
         clean: bool,
         verify_pass: bool,
-        latest: Option<Version>,
+        published: BTreeMap<String, Vec<Version>>,
         log: RefCell<Vec<String>>,
+    }
+
+    /// Build a `published` map from `(package, &[versions])` pairs.
+    fn published(entries: &[(&str, &[&str])]) -> BTreeMap<String, Vec<Version>> {
+        entries
+            .iter()
+            .map(|(pkg, vs)| {
+                (
+                    (*pkg).to_string(),
+                    vs.iter().map(|v| Version::parse(v).unwrap()).collect(),
+                )
+            })
+            .collect()
     }
 
     impl Runner for FakeRunner {
@@ -878,12 +938,15 @@ mod tests {
         fn latest_version(
             &self,
             _dir: &Path,
-            _pkg: &str,
-            _req: &VersionReq,
+            pkg: &str,
+            req: &VersionReq,
         ) -> anyhow::Result<Version> {
-            self.latest
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("no latest configured"))
+            let versions = self
+                .published
+                .get(pkg)
+                .ok_or_else(|| anyhow::anyhow!("no published versions configured for {pkg}"))?;
+            select_latest(versions, req)
+                .ok_or_else(|| anyhow::anyhow!("no configured version of {pkg} satisfies {req}"))
         }
         fn create_branch(&self, _dir: &Path, branch: &str) -> anyhow::Result<()> {
             self.log.borrow_mut().push(format!("branch {branch}"));
@@ -915,22 +978,31 @@ mod tests {
     fn discovers_scoped_chassis_and_companions() {
         let requires: BTreeMap<String, String> = [
             ("node".into(), ">=24".into()),
-            ("toolchain".into(), "^0.1".into()),
+            ("toolchain".into(), "^0.3".into()),
         ]
         .into_iter()
         .collect();
         let pkg = parsed(&package(
-            "    \"@enrahitu/hiqlite-native\": \"0.1.0\",\n    \"left-pad\": \"^1.0.0\"",
-            "    \"@enrahitu/toolchain\": \"0.1.0\"",
+            "    \"@statecrafting/hiqlite-native\": \"0.1.0\",\n    \"left-pad\": \"^1.0.0\"",
+            "    \"@statecrafting/toolchain\": \"0.1.0\"",
         ));
         let chassis = discover_chassis(&pkg, &requires).unwrap();
         let names: Vec<&str> = chassis.pins.iter().map(|p| p.name.as_str()).collect();
         // The seed and its scope companion are bumped; a third-party dep is not.
-        assert!(names.contains(&"@enrahitu/toolchain"));
-        assert!(names.contains(&"@enrahitu/hiqlite-native"));
+        assert!(names.contains(&"@statecrafting/toolchain"));
+        assert!(names.contains(&"@statecrafting/hiqlite-native"));
         assert!(!names.contains(&"left-pad"));
-        assert_eq!(chassis.range_key, "toolchain");
-        assert_eq!(chassis.pins[chassis.primary].name, "@enrahitu/toolchain");
+        // The primary is the named seed and carries its `[requires]` range; the
+        // companion is discovered by scope alone and carries no named range.
+        let primary = &chassis.pins[chassis.primary];
+        assert_eq!(primary.name, "@statecrafting/toolchain");
+        assert_eq!(primary.range.as_deref(), Some("^0.3"));
+        let companion = chassis
+            .pins
+            .iter()
+            .find(|p| p.name == "@statecrafting/hiqlite-native")
+            .unwrap();
+        assert_eq!(companion.range, None);
     }
 
     #[test]
@@ -951,8 +1023,8 @@ mod tests {
             [("toolchain".into(), "^0.1".into())].into_iter().collect();
         // The chassis is present but as a file: link, as in the template repo.
         let pkg = parsed(&package(
-            "    \"@enrahitu/hiqlite-native\": \"file:./addon\"",
-            "    \"@enrahitu/toolchain\": \"file:./packages/toolchain\"",
+            "    \"@statecrafting/hiqlite-native\": \"file:./addon\"",
+            "    \"@statecrafting/toolchain\": \"file:./packages/toolchain\"",
         ));
         let err = discover_chassis(&pkg, &requires).unwrap_err();
         assert_eq!(err.kind(), "local_chassis");
@@ -961,28 +1033,48 @@ mod tests {
     #[test]
     fn set_pin_preserves_surrounding_text() {
         let text = package(
-            "    \"@enrahitu/hiqlite-native\": \"0.1.0\",\n    \"left-pad\": \"1.0.0\"",
-            "    \"@enrahitu/toolchain\": \"0.1.0\"",
+            "    \"@statecrafting/hiqlite-native\": \"0.1.0\",\n    \"left-pad\": \"1.0.0\"",
+            "    \"@statecrafting/toolchain\": \"0.1.0\"",
         );
-        let out = set_pin(&text, "devDependencies", "@enrahitu/toolchain", "0.2.0").unwrap();
-        assert!(out.contains("\"@enrahitu/toolchain\": \"0.2.0\""));
+        let out = set_pin(
+            &text,
+            "devDependencies",
+            "@statecrafting/toolchain",
+            "0.2.0",
+        )
+        .unwrap();
+        assert!(out.contains("\"@statecrafting/toolchain\": \"0.2.0\""));
         // The unrelated dependency and its pin are untouched.
         assert!(out.contains("\"left-pad\": \"1.0.0\""));
-        assert!(out.contains("\"@enrahitu/hiqlite-native\": \"0.1.0\""));
+        assert!(out.contains("\"@statecrafting/hiqlite-native\": \"0.1.0\""));
     }
 
     #[test]
-    fn apply_pins_bumps_every_chassis_dep() {
+    fn apply_pins_writes_each_pins_own_target() {
+        // Per-package targets: the seed and its companion can bump to different
+        // versions, and `apply_pins` writes each pin's own resolved target.
         let requires: BTreeMap<String, String> =
             [("toolchain".into(), "^0.1".into())].into_iter().collect();
         let text = package(
-            "    \"@enrahitu/hiqlite-native\": \"0.1.0\"",
-            "    \"@enrahitu/toolchain\": \"0.1.0\"",
+            "    \"@statecrafting/hiqlite-native\": \"0.1.0\"",
+            "    \"@statecrafting/toolchain\": \"0.1.0\"",
         );
         let chassis = discover_chassis(&parsed(&text), &requires).unwrap();
-        let out = apply_pins(&text, &chassis.pins, "0.1.5").unwrap();
-        assert!(out.contains("\"@enrahitu/toolchain\": \"0.1.5\""));
-        assert!(out.contains("\"@enrahitu/hiqlite-native\": \"0.1.5\""));
+        let resolved: Vec<ResolvedPin> = chassis
+            .pins
+            .iter()
+            .map(|p| ResolvedPin {
+                pin: p.clone(),
+                target: if p.name == "@statecrafting/toolchain" {
+                    "0.1.5".to_string()
+                } else {
+                    "0.1.2".to_string()
+                },
+            })
+            .collect();
+        let out = apply_pins(&text, &resolved).unwrap();
+        assert!(out.contains("\"@statecrafting/toolchain\": \"0.1.5\""));
+        assert!(out.contains("\"@statecrafting/hiqlite-native\": \"0.1.2\""));
     }
 
     #[test]
@@ -993,7 +1085,7 @@ mod tests {
             manifest("toolchain = \"^0.1\"", Some("npm test")),
         )
         .unwrap();
-        let pkg = package("", "    \"@enrahitu/toolchain\": \"0.1.0\"");
+        let pkg = package("", "    \"@statecrafting/toolchain\": \"0.1.0\"");
         std::fs::write(dir.join("package.json"), &pkg).unwrap();
 
         let runner = FakeRunner::default();
@@ -1020,7 +1112,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             dir.join("package.json"),
-            package("", "    \"@enrahitu/toolchain\": \"0.1.0\""),
+            package("", "    \"@statecrafting/toolchain\": \"0.1.0\""),
         )
         .unwrap();
 
@@ -1042,7 +1134,7 @@ mod tests {
             manifest("toolchain = \"^0.1\"", Some("npm test")),
         )
         .unwrap();
-        let pkg = package("", "    \"@enrahitu/toolchain\": \"0.1.0\"");
+        let pkg = package("", "    \"@statecrafting/toolchain\": \"0.1.0\"");
         std::fs::write(dir.join("package.json"), &pkg).unwrap();
 
         let runner = FakeRunner {
@@ -1068,7 +1160,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             dir.join("package.json"),
-            package("", "    \"@enrahitu/toolchain\": \"0.1.0\""),
+            package("", "    \"@statecrafting/toolchain\": \"0.1.0\""),
         )
         .unwrap();
 
@@ -1097,7 +1189,7 @@ mod tests {
         );
         // The bump is on disk.
         let written = std::fs::read_to_string(dir.join("package.json")).unwrap();
-        assert!(written.contains("\"@enrahitu/toolchain\": \"0.1.5\""));
+        assert!(written.contains("\"@statecrafting/toolchain\": \"0.1.5\""));
     }
 
     #[test]
@@ -1110,7 +1202,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             dir.join("package.json"),
-            package("", "    \"@enrahitu/toolchain\": \"0.1.0\""),
+            package("", "    \"@statecrafting/toolchain\": \"0.1.0\""),
         )
         .unwrap();
 
@@ -1139,14 +1231,14 @@ mod tests {
         .unwrap();
         std::fs::write(
             dir.join("package.json"),
-            package("", "    \"@enrahitu/toolchain\": \"0.1.0\""),
+            package("", "    \"@statecrafting/toolchain\": \"0.1.0\""),
         )
         .unwrap();
 
         let runner = FakeRunner {
             clean: true,
             verify_pass: true,
-            latest: Some(Version::new(0, 1, 9)),
+            published: published(&[("@statecrafting/toolchain", &["0.1.0", "0.1.9"])]),
             ..Default::default()
         };
         let report = run(&runner, &dir, None, false, false).unwrap();
@@ -1167,7 +1259,7 @@ mod tests {
             from: "0.1.0".to_string(),
             to: "0.1.5".to_string(),
             pins: vec![PinReport {
-                name: "@enrahitu/toolchain".to_string(),
+                name: "@statecrafting/toolchain".to_string(),
                 from: "0.1.0".to_string(),
                 to: "0.1.5".to_string(),
                 section: "devDependencies".to_string(),
@@ -1198,7 +1290,7 @@ mod tests {
             from: "0.1.0".to_string(),
             to: "0.1.5".to_string(),
             pins: vec![PinReport {
-                name: "@enrahitu/toolchain".to_string(),
+                name: "@statecrafting/toolchain".to_string(),
                 from: "0.1.0".to_string(),
                 to: "0.1.5".to_string(),
                 section: "devDependencies".to_string(),
@@ -1236,9 +1328,10 @@ mod tests {
     }
 
     #[test]
-    fn companion_behind_the_primary_is_not_a_no_op() {
-        // The primary is already at the target but a scope companion lags: the
-        // no-op check compares every pin, so the companion is still bumped.
+    fn companion_behind_the_primary_is_bumped_independently() {
+        // The primary seed is forced to its target; a scope companion lags and
+        // auto-resolves against its own published set, so the companion is
+        // bumped on its own track rather than inheriting the primary's version.
         let dir = tempdir();
         std::fs::write(
             dir.join("template.toml"),
@@ -1248,8 +1341,8 @@ mod tests {
         std::fs::write(
             dir.join("package.json"),
             package(
-                "    \"@enrahitu/hiqlite-native\": \"0.1.0\"",
-                "    \"@enrahitu/toolchain\": \"0.1.5\"",
+                "    \"@statecrafting/hiqlite-native\": \"0.1.0\"",
+                "    \"@statecrafting/toolchain\": \"0.1.5\"",
             ),
         )
         .unwrap();
@@ -1257,46 +1350,71 @@ mod tests {
         let runner = FakeRunner {
             clean: true,
             verify_pass: true,
+            published: published(&[("@statecrafting/hiqlite-native", &["0.1.0", "0.1.2"])]),
             ..Default::default()
         };
+        // Primary toolchain forced to 0.1.5 (already there); the companion
+        // auto-resolves within `^0.1.0` to its own latest, 0.1.2.
         let report = run(&runner, &dir, Some("0.1.5"), false, false).unwrap();
         // Not the no-op branch: the run proceeded and verify ran.
         assert_eq!(report.verify, VerifyState::Pass);
         assert!(report
             .pins
             .iter()
-            .any(|p| p.name == "@enrahitu/hiqlite-native" && p.from == "0.1.0"));
+            .any(|p| p.name == "@statecrafting/hiqlite-native"
+                && p.from == "0.1.0"
+                && p.to == "0.1.2"));
     }
 
     #[test]
-    fn multi_seed_gate_refuses_when_any_range_excludes_the_target() {
-        // Two chassis requirements; the target satisfies one range but not the
-        // other. The gate checks every range, so it refuses regardless of which
-        // seed happens to be primary.
+    fn companion_is_never_pinned_to_a_version_it_never_published() {
+        // The regression the per-package model fixes: the seed resolves forward,
+        // but a companion that never published the seed's target must stay on its
+        // own latest, not be pinned to a nonexistent version.
         let dir = tempdir();
         std::fs::write(
             dir.join("template.toml"),
-            manifest(
-                "toolchain = \"<0.1.4\"\nhiqlite-native = \"^0.1\"",
-                Some("npm test"),
-            ),
+            manifest("toolchain = \"^0.1\"", Some("npm test")),
         )
         .unwrap();
         std::fs::write(
             dir.join("package.json"),
             package(
-                "    \"@enrahitu/hiqlite-native\": \"0.1.0\"",
-                "    \"@enrahitu/toolchain\": \"0.1.0\"",
+                "    \"@statecrafting/hiqlite-native\": \"0.1.0\"",
+                "    \"@statecrafting/toolchain\": \"0.1.0\"",
             ),
         )
         .unwrap();
 
         let runner = FakeRunner {
             clean: true,
+            verify_pass: true,
+            // toolchain publishes 0.1.5; hiqlite-native only ever published 0.1.0.
+            published: published(&[
+                ("@statecrafting/toolchain", &["0.1.0", "0.1.5"]),
+                ("@statecrafting/hiqlite-native", &["0.1.0"]),
+            ]),
             ..Default::default()
         };
-        let err = run(&runner, &dir, Some("0.1.5"), false, false).unwrap_err();
-        assert_eq!(err.kind(), "incompatible_target");
+        let report = run(&runner, &dir, None, false, false).unwrap();
+        // Seed moves to its own latest; companion stays at 0.1.0 (not 0.1.5).
+        let seed = report
+            .pins
+            .iter()
+            .find(|p| p.name == "@statecrafting/toolchain")
+            .unwrap();
+        assert_eq!(seed.to, "0.1.5");
+        let companion = report
+            .pins
+            .iter()
+            .find(|p| p.name == "@statecrafting/hiqlite-native")
+            .unwrap();
+        assert_eq!(companion.from, "0.1.0");
+        assert_eq!(companion.to, "0.1.0");
+        // Written to disk verbatim: the companion is not rewritten to 0.1.5.
+        let written = std::fs::read_to_string(dir.join("package.json")).unwrap();
+        assert!(written.contains("\"@statecrafting/hiqlite-native\": \"0.1.0\""));
+        assert!(written.contains("\"@statecrafting/toolchain\": \"0.1.5\""));
     }
 
     /// A unique temp dir under the OS temp root, no external tempfile crate. The
